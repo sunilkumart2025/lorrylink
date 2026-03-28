@@ -110,30 +110,7 @@ export default function LiveNavigation() {
     };
   }, [booking?.id]);
 
-  // Mock Verification Simulation (Auto-approve after 5s)
-  useEffect(() => {
-    if (bookingStatus.loading_proof_status === 'pending' && booking?.id) {
-      const timer = setTimeout(async () => {
-        await supabase
-          .from('bookings')
-          .update({ loading_proof_status: 'verified' })
-          .eq('id', booking.id);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [bookingStatus.loading_proof_status, booking?.id]);
 
-  useEffect(() => {
-    if (bookingStatus.delivery_proof_status === 'pending' && booking?.id) {
-      const timer = setTimeout(async () => {
-        await supabase
-          .from('bookings')
-          .update({ delivery_proof_status: 'verified' })
-          .eq('id', booking.id);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [bookingStatus.delivery_proof_status, booking?.id]);
 
   const watchRef = useRef(null);
   const lastSyncRef = useRef(0);
@@ -538,10 +515,10 @@ export default function LiveNavigation() {
                   }}
                 >
                   <div className="loader-pulse" style={{ margin: '0 auto 16px', background: 'var(--color-warning)' }}></div>
-                  <div style={{ color: 'var(--color-warning)', fontWeight: '900', fontSize: '15px' }}>Verifying Pickup Documents...</div>
-                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Our operations team is reviewing your upload. Please wait.</div>
+                  <div style={{ color: 'var(--color-warning)', fontWeight: '900', fontSize: '15px' }}>Reviewing Pickup (Mock)...</div>
+                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Simulating operations team review. Please wait.</div>
                 </motion.div>
-              ) : bookingStatus.loading_proof_status === 'verified' ? (
+              ) : bookingStatus.loading_proof_status === 'accepted' ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   style={{ 
@@ -550,7 +527,7 @@ export default function LiveNavigation() {
                   }}
                 >
                   <div style={{ color: 'var(--color-success)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <CheckCircle size={20} /> PICKUP VERIFIED
+                    <CheckCircle size={20} /> PICKUP ACCEPTED
                   </div>
                   <button
                     onClick={() => updateMilestone('loaded')}
@@ -609,10 +586,10 @@ export default function LiveNavigation() {
                   }}
                 >
                   <div className="loader-pulse" style={{ margin: '0 auto 16px', background: 'var(--color-primary)' }}></div>
-                  <div style={{ color: 'var(--color-primary)', fontWeight: '900', fontSize: '15px' }}>Verifying Delivery Proof...</div>
-                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Stand by while we confirm the safe delivery.</div>
+                  <div style={{ color: 'var(--color-primary)', fontWeight: '900', fontSize: '15px' }}>Reviewing Delivery (Mock)...</div>
+                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Simulating final delivery confirmation.</div>
                 </motion.div>
-              ) : bookingStatus.delivery_proof_status === 'verified' ? (
+              ) : bookingStatus.delivery_proof_status === 'accepted' ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   style={{ 
@@ -621,7 +598,7 @@ export default function LiveNavigation() {
                   }}
                 >
                   <div style={{ color: 'var(--color-success)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <CheckCircle size={20} /> DELIVERY VERIFIED
+                    <CheckCircle size={20} /> DELIVERY ACCEPTED
                   </div>
                   <button
                     onClick={() => setStatus('arrived')}

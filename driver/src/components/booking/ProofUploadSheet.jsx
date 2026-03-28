@@ -33,15 +33,6 @@ export default function ProofUploadSheet({ booking, type, user, isOpen, onClose,
     try {
       await uploadBookingProof(booking.id, type, file, user.id);
       
-      // Mock Auto-Approve (for demo purposes)
-      setTimeout(async () => {
-        const { supabase } = await import('../../lib/supabase');
-        await supabase
-          .from('bookings')
-          .update({ [type === 'loading' ? 'loading_proof_status' : 'delivery_proof_status']: 'verified' })
-          .eq('id', booking.id);
-      }, 5000);
-
       onSuccess?.();
       onClose();
       // Reset state for next use
@@ -78,7 +69,7 @@ export default function ProofUploadSheet({ booking, type, user, isOpen, onClose,
         <div className="app-sheet-header">
           <div>
             <h3 className="app-sheet-title">
-              {type === 'loading' ? 'Capture Pickup Proof' : 'Capture Delivery Proof'}
+              {type === 'loading' ? 'Mock Pickup Verification (Demo)' : 'Mock Delivery Verification (Demo)'}
             </h3>
             <p className="app-page-subtitle">
               {type === 'loading' 
@@ -176,12 +167,12 @@ export default function ProofUploadSheet({ booking, type, user, isOpen, onClose,
               {uploading ? (
                 <>
                   <Clock size={18} className="animate-spin" />
-                  UPLOADING SECURELY...
+                  PROCESSING MOCK PROOF...
                 </>
               ) : (
                 <>
                   <CheckCircle size={18} />
-                  SUBMIT FOR VERIFICATION
+                  SUBMIT MOCK PROOF
                 </>
               )}
             </button>

@@ -69,46 +69,47 @@ export async function updateBookingStatus(bookingId, status) {
 export async function completeBooking(bookingId) {
   return updateBookingStatus(bookingId, 'completed');
 }
-/**
- * Upload loading or delivery proof.
- * @param {string} bookingId
- * @param {'loading' | 'delivery'} type
- * @param {File} file
- * @param {string} userId
- */
 export async function uploadBookingProof(bookingId, type, file, userId) {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${bookingId}_${type}_${Date.now()}.${fileExt}`;
-  const filePath = `${userId}/${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('booking-verifications')
-    .upload(filePath, file);
-
-  if (uploadError) throw uploadError;
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('booking-verifications')
-    .getPublicUrl(filePath);
+  // 1. Generate a mock public URL
+  const mockUrl = `https://images.unsplash.com/photo-1586191582056-b15cd3db3d94?q=80&w=500&auto=format&fit=crop`;
 
   const updateData = type === 'loading' ? {
-    loading_proof_url: publicUrl,
+    loading_proof_url: mockUrl,
     loading_proof_status: 'pending',
     loading_proof_uploaded_at: new Date().toISOString()
   } : {
-    delivery_proof_url: publicUrl,
+    delivery_proof_url: mockUrl,
     delivery_proof_status: 'pending',
     delivery_proof_uploaded_at: new Date().toISOString()
   };
 
-  // If this is loading proof, we also update the main status to in_transit?
-  // User didn't specify, but usually loading proof is what triggers in_transit.
-  // I'll stick to just updating the proof status as requested.
-
-  return supabase
+  // 2. Perform initial update to 'pending'
+  const { data: updatedBooking, error } = await supabase
     .from('bookings')
     .update(updateData)
     .eq('id', bookingId)
     .select()
     .single();
+
+  if (error) throw error;
+
+  // 3. Trigger asynchronous mock background verification (3s delay)
+  setTimeout(async () => {
+    const finalUpdate = type === 'loading' ? {
+      loading_proof_status: 'accepted',
+      current_milestone: 'loaded',
+      status: 'in_progress'
+    } : {
+      delivery_proof_status: 'accepted',
+      current_milestone: 'delivered',
+      status: 'completed'
+    };
+
+    await supabase
+      .from('bookings')
+      .update(finalUpdate)
+      .eq('id', bookingId);
+  }, 3000);
+
+  return updatedBooking;
 }

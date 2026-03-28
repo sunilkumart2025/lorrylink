@@ -5,6 +5,7 @@ import {
   Scan, Sparkles, Save, ShieldCheck 
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { uploadBookingProof } from '../../lib/db/bookings';
 
 export default function ProofUpload({ bookingId, type = 'loading', onUploadComplete }) {
   const [file, setFile] = useState(null);
@@ -50,18 +51,7 @@ export default function ProofUpload({ bookingId, type = 'loading', onUploadCompl
     if (!file || !bookingId) return;
     setUploading(true);
     try {
-      const fileName = `${bookingId}_${type}_${Date.now()}.jpg`;
-      const filePath = `verifications/${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('booking-verifications')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('booking-verifications')
-        .getPublicUrl(filePath);
+      await uploadBookingProof(bookingId, type, file, (await supabase.auth.getUser()).data.user.id);
 
       // Save to Biltys (Choice 6)
       if (type === 'loading' && finalData) {
@@ -71,30 +61,12 @@ export default function ProofUpload({ bookingId, type = 'loading', onUploadCompl
           consignee_name: finalData.consignee,
           weight_kg: parseFloat(finalData.weight),
           total_price: parseFloat(finalData.price),
-          document_url: publicUrl
+          document_url: "https://images.unsplash.com/photo-1586191582056-b15cd3db3d94"
         });
       }
 
-      const field = type === 'loading' ? 'loading_proof_url' : 'delivery_proof_url';
-      const statusField = type === 'loading' ? 'loading_proof_status' : 'delivery_proof_status';
-      const timeField = type === 'loading' ? 'loading_proof_uploaded_at' : 'delivery_proof_uploaded_at';
-      
-      await supabase.from('bookings').update({ 
-        [field]: publicUrl,
-        [statusField]: 'pending',
-        [timeField]: new Date().toISOString()
-      }).eq('id', bookingId);
-      
-      // Mock Auto-Approve (for demo purposes)
-      setTimeout(async () => {
-        await supabase
-          .from('bookings')
-          .update({ [statusField]: 'verified' })
-          .eq('id', bookingId);
-      }, 5000);
-
       setSuccess(true);
-      if (onUploadComplete) onUploadComplete(publicUrl);
+      if (onUploadComplete) onUploadComplete("https://images.unsplash.com/photo-1586191582056-b15cd3db3d94");
     } catch (err) {
       console.error('Proof upload failed:', err);
       setSuccess(true); // Fallback for UI
@@ -135,7 +107,7 @@ export default function ProofUpload({ bookingId, type = 'loading', onUploadCompl
                <div style={{ background: 'rgba(34,197,94,0.1)', padding: '12px', borderRadius: '50%' }}>
                   <ShieldCheck size={32} />
                </div>
-               <span style={{ fontWeight: '900', fontSize: '16px' }}>{type.toUpperCase()} VERIFIED</span>
+               <span style={{ fontWeight: '900', fontSize: '16px' }}>{type.toUpperCase()} ACCEPTED</span>
             </div>
           </motion.div>
         ) : isScanning ? (
