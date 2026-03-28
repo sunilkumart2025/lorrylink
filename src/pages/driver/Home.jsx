@@ -17,11 +17,15 @@ import {
   Siren,
   ChevronRight,
   User,
+  Clock,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import LiveFleetMap from '../../components/maps/LiveFleetMap';
 import FuelPriceBanner from '../../components/common/FuelPriceBanner';
 import ThemeToggle from '../../components/common/ThemeToggle';
+import ChatWindow from '../../components/chat/ChatWindow';
+import ProofUploadSheet from '../../components/booking/ProofUploadSheet';
+import { MessageSquare, Camera } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
@@ -30,7 +34,10 @@ import { parseWKT } from '../../utils/geo';
 export default function Home() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useStore();
+  const [chatBooking, setChatBooking] = React.useState(null);
+  const [proofModal, setProofModal] = React.useState({ isOpen: false, type: 'loading', booking: null });
 
   useRealtimeSync('bookings', 'activeBooking', `driver_id=eq.${user?.id}`);
   useRealtimeSync('bookings', 'performance-stats', `driver_id=eq.${user?.id}`);
@@ -67,7 +74,8 @@ export default function Home() {
         .from('bookings')
         .select('*, shipments(*)')
         .eq('driver_id', user.id)
-        .eq('status', 'in_progress')
+        .in('status', ['requested', 'in_progress'])
+        .order('created_at', { ascending: false })
         .limit(1);
       return data?.[0] || null;
     },
@@ -162,6 +170,45 @@ export default function Home() {
   const firstName = user?.name?.split(' ')[0] || 'User';
   const driverId = user?.id ? `#${user.id.slice(0, 5).toUpperCase()}` : '#00000';
   const subscriptionTier = user?.subscription_tier || 'Starter';
+  const subscriptionTierKey = subscriptionTier.toUpperCase();
+  const membershipMeta = {
+    STARTER: {
+      description: 'Marketplace essentials with live trip sync and standard dispatch visibility.',
+      perk: 'Open benefits',
+      status: 'Active',
+      tone: 'starter',
+      iconColor: 'var(--color-primary)',
+    },
+    SILVER: {
+      description: 'Core load access, profile trust signals, and smoother pickup coordination.',
+      perk: 'Standard route tools',
+      status: 'Enabled',
+      tone: 'silver',
+      iconColor: '#94A3B8',
+    },
+    GOLD: {
+      description: 'Priority matching, stronger truck visibility, and more support on the road.',
+      perk: 'Priority lane unlocked',
+      status: 'Priority',
+      tone: 'gold',
+      iconColor: '#F59E0B',
+    },
+    PLATINUM: {
+      description: 'Higher earning controls, lower friction workflows, and premium route intelligence.',
+      perk: 'Performance tier live',
+      status: 'Elite',
+      tone: 'platinum',
+      iconColor: '#22D3EE',
+    },
+    FLEET: {
+      description: 'Operational tools for multi-driver coordination, visibility, and centralized control.',
+      perk: 'Fleet controls ready',
+      status: 'Enterprise',
+      tone: 'fleet',
+      iconColor: '#8B5CF6',
+    },
+  };
+  const currentMembership = membershipMeta[subscriptionTierKey] || membershipMeta.STARTER;
   const missionLabel = activeBooking?.shipments?.cargo_type || 'Freight move';
 
   return (
@@ -254,34 +301,85 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      const pickupCoords = parseWKT(activeBooking.shipments?.pickup_location);
-                      const dropCoords = parseWKT(activeBooking.shipments?.drop_location);
-                      navigate('/driver/navigate', {
-                        state: {
-                          booking: activeBooking,
-                          pickup: pickupCoords
-                            ? { ...pickupCoords, address: activeBooking.shipments?.pickup_address }
-                            : null,
-                          drop: dropCoords
-                            ? { ...dropCoords, address: activeBooking.shipments?.drop_address }
-                            : null,
-                        },
-                      });
-                    }}
-                    className="btn btn-primary btn-block"
-                    style={{
-                      height: '58px',
-                      borderRadius: '18px',
-                      fontSize: '16px',
-                      fontWeight: '900',
-                      letterSpacing: '0.01em',
-                    }}
-                  >
-                    {t('home.navigate')}
-                  </button>
-                </motion.div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      {/* Quick Scan Logic */}
+                      {activeBooking.status === 'requested' && !activeBooking.loading_proof_uploaded_at && (
+                        <button
+                          onClick={() => setProofModal({ isOpen: true, type: 'loading', booking: activeBooking })}
+                          className="trip-action-button is-primary"
+                          style={{ height: '58px', borderRadius: '18px', flex: 1 }}
+                        >
+                          <Camera size={20} /> SCAN PICKUP
+                        </button>
+                      )}
+
+                      {activeBooking.loading_proof_status === 'pending' && (
+                        <div className="badge badge-warning" style={{ height: '58px', borderRadius: '18px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', fontWeight: '900' }}>
+                          <Clock size={20} /> REVIEWING PICKUP
+                        </div>
+                      )}
+
+                      {activeBooking.status === 'in_progress' && !activeBooking.delivery_proof_uploaded_at && (
+                        <button
+                          onClick={() => setProofModal({ isOpen: true, type: 'delivery', booking: activeBooking })}
+                          className="trip-action-button is-primary"
+                          style={{ height: '58px', borderRadius: '18px', flex: 1 }}
+                        >
+                          <Camera size={20} /> SCAN DELIVERY
+                        </button>
+                      )}
+
+                      {activeBooking.delivery_proof_status === 'pending' && (
+                        <div className="badge badge-warning" style={{ height: '58px', borderRadius: '18px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', fontWeight: '900' }}>
+                          <Clock size={20} /> REVIEWING DELIVERY
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          const pickupCoords = parseWKT(activeBooking.shipments?.pickup_location);
+                          const dropCoords = parseWKT(activeBooking.shipments?.drop_location);
+                          navigate('/driver/navigate', {
+                            state: {
+                              booking: activeBooking,
+                              pickup: pickupCoords
+                                ? { ...pickupCoords, address: activeBooking.shipments?.pickup_address }
+                                : null,
+                              drop: dropCoords
+                                ? { ...dropCoords, address: activeBooking.shipments?.drop_address }
+                                : null,
+                            },
+                          });
+                        }}
+                        className="trip-action-button is-primary"
+                        style={{
+                          flex: 2,
+                          height: '58px',
+                          borderRadius: '18px',
+                          fontSize: '16px',
+                          fontWeight: '900',
+                        }}
+                      >
+                        {t('home.navigate')}
+                      </button>
+                      <button
+                        onClick={() => setChatBooking(activeBooking)}
+                        className="trip-action-button is-chat"
+                        style={{
+                          flex: 1,
+                          height: '58px',
+                          borderRadius: '18px',
+                          fontSize: '16px',
+                          fontWeight: '900',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <MessageSquare size={20} />
+                      </button>
+                    </div>
+                  </motion.div>
               ) : (
                 <motion.div variants={item} className="card-glass home-empty-state home-mission-shell">
                   <Truck size={40} color="var(--color-text-muted)" style={{ marginBottom: '16px', opacity: 0.4 }} />
@@ -403,25 +501,27 @@ export default function Home() {
               </div>
               <button
                 onClick={() => navigate('/driver/subscription')}
-                className="subscription-card home-tier-card"
-                style={{
-                  border: `1.2px solid ${
-                    subscriptionTier?.toUpperCase() === 'GOLD' ? '#F59E0B' : 'var(--glass-border)'
-                  }`,
-                }}
+                className={`subscription-card home-tier-card is-${currentMembership.tone}`}
               >
-                <Shield
-                  size={22}
-                  color={subscriptionTier?.toUpperCase() === 'GOLD' ? '#F59E0B' : 'var(--color-primary)'}
-                />
-                <div style={{ flex: 1 }}>
-                  <div className="home-card-kicker">Membership</div>
-                <div style={{ fontSize: '16px', fontWeight: '900', color: 'var(--color-text-primary)' }}>
-                  {subscriptionTier?.toUpperCase()} Tier
+                <div className="home-tier-icon-shell">
+                  <Shield size={22} color={currentMembership.iconColor} />
                 </div>
-              </div>
-              <ChevronRight size={16} color="var(--color-text-muted)" />
-            </button>
+                <div className="home-tier-copy">
+                  <div className="home-tier-head">
+                    <div className="home-card-kicker">Membership</div>
+                    <div className="home-tier-status">{currentMembership.status}</div>
+                  </div>
+                  <div className="home-tier-title">{subscriptionTierKey} Tier</div>
+                  <div className="home-tier-description">{currentMembership.description}</div>
+                  <div className="home-tier-footer">
+                    <div className="home-tier-perk">{currentMembership.perk}</div>
+                    <div className="home-tier-link">Manage plan</div>
+                  </div>
+                </div>
+                <div className="home-tier-chevron">
+                  <ChevronRight size={16} color="var(--color-text-muted)" />
+                </div>
+              </button>
             </motion.div>
 
             <motion.div variants={item} className="card-glass home-actions-card home-mobile-hide">
@@ -504,6 +604,29 @@ export default function Home() {
           </aside>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {proofModal.isOpen && (
+          <ProofUploadSheet 
+            booking={proofModal.booking} 
+            type={proofModal.type} 
+            user={user} 
+            isOpen={proofModal.isOpen} 
+            onClose={() => setProofModal({ ...proofModal, isOpen: false })} 
+            onSuccess={() => queryClient.invalidateQueries(['activeBooking'])} 
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {chatBooking && (
+          <ChatWindow 
+            shipment={chatBooking.shipments} 
+            user={user} 
+            onClose={() => setChatBooking(null)} 
+          />
+        )}
+      </AnimatePresence>
 
       <style>{`
         .loader-pulse {

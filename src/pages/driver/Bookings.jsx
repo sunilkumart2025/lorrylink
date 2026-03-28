@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Truck, CheckCircle, Clock, Star, MapPin, Navigation, ShieldCheck, ArrowRight, IndianRupee, X } from 'lucide-react';
+import { Truck, CheckCircle, Clock, Star, MapPin, Navigation, ShieldCheck, ArrowRight, IndianRupee, X, MessageSquare, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +11,8 @@ import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import { updateBookingStatus } from '../../lib/db/bookings';
 import TripStatusStepper from '../../components/trip/TripStatusStepper';
 import { parseWKT } from '../../utils/geo';
+import ChatWindow from '../../components/chat/ChatWindow';
+import ProofUploadSheet from '../../components/booking/ProofUploadSheet';
 
 export default function Bookings() {
   const { user } = useStore();
@@ -22,6 +24,8 @@ export default function Bookings() {
   
   // New State for Completion Flow
   const [finishingBooking, setFinishingBooking] = useState(null);
+  const [chatBooking, setChatBooking] = useState(null);
+  const [proofModal, setProofModal] = useState({ isOpen: false, type: 'loading', booking: null });
   const [otp, setOtp] = useState(['', '', '', '']);
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -102,7 +106,7 @@ export default function Bookings() {
         queryClient.invalidateQueries(['bookings']);
         queryClient.invalidateQueries(['financials']);
         queryClient.invalidateQueries(['performance-stats']);
-      } catch (err) {
+      } catch {
         setError("Database update failed. Please try again.");
       }
     } else {
@@ -214,8 +218,43 @@ export default function Bookings() {
 
                 {/* Primary Actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {(booking.status === 'requested' || booking.status === 'in_progress') && (
                     <div style={{ display: 'flex', gap: '10px' }}>
+                      {/* Loading Proof Step */}
+                      {booking.status === 'requested' && !booking.loading_proof_uploaded_at && (
+                        <button
+                          onClick={() => setProofModal({ isOpen: true, type: 'loading', booking })}
+                          className="trip-action-button is-primary"
+                          style={{ flex: 2, height: '48px', borderRadius: '14px', background: 'var(--color-primary)' }}
+                        >
+                          <Camera size={18} /> SCAN PICKUP
+                        </button>
+                      )}
+
+                      {/* Delivery Proof Step (Requires loading to be verified if system is strict, 
+                          but here we show it when in_progress) */}
+                      {booking.status === 'in_progress' && !booking.delivery_proof_uploaded_at && (
+                        <button
+                          onClick={() => setProofModal({ isOpen: true, type: 'delivery', booking })}
+                          className="trip-action-button is-primary"
+                          style={{ flex: 2, height: '48px', borderRadius: '14px', background: 'var(--color-primary)' }}
+                        >
+                          <Camera size={18} /> SCAN DELIVERY
+                        </button>
+                      )}
+
+                      {/* Status Badges for Verification */}
+                      {booking.loading_proof_uploaded_at && booking.loading_proof_status === 'pending' && (
+                        <div className="badge badge-warning" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <Clock size={14} /> PICKUP REVIEW
+                        </div>
+                      )}
+
+                      {booking.delivery_proof_uploaded_at && booking.delivery_proof_status === 'pending' && (
+                        <div className="badge badge-warning" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <Clock size={14} /> DELIVERY REVIEW
+                        </div>
+                      )}
+
                       <button
                         onClick={() => {
                           const pCoords = parseWKT(booking.shipments?.pickup_location);
@@ -233,13 +272,20 @@ export default function Bookings() {
                         <Navigation size={18} /> NAVIGATE
                       </button>
                       <button
+                        onClick={() => setChatBooking(booking)}
+                        className="trip-action-button is-chat"
+                        style={{ flex: 1, height: '48px', borderRadius: '14px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      >
+                        <MessageSquare size={18} /> MESSAGE
+                      </button>
+                      <button
                         onClick={() => setFinishingBooking(booking)}
-                        style={{ flex: 1.5, height: '48px', background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)', border: 'none', borderRadius: '14px', color: 'white', fontWeight: '900', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 8px 16px rgba(34, 197, 94, 0.2)' }}
+                        className="trip-action-button is-success"
+                        style={{ flex: 1.5, height: '48px', borderRadius: '14px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         <ArrowRight size={18} /> REACHED DESTINATION
                       </button>
                     </div>
-                  )}
 
                   {booking.status === 'completed' && (
                     <button 
@@ -307,7 +353,7 @@ export default function Bookings() {
                   </div>
 
                   {error && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--color-danger)', fontSize: '13px', textAlign: 'center', marginBottom: '16px', fontWeight: 'bold' }}>{error}</motion.p>
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--color-error)', fontSize: '13px', textAlign: 'center', marginBottom: '16px', fontWeight: 'bold' }}>{error}</motion.p>
                   )}
 
                   <button
@@ -355,6 +401,30 @@ export default function Bookings() {
               )}
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* CHAT WINDOW OVERLAY */}
+      <AnimatePresence>
+        {chatBooking && (
+          <ChatWindow 
+            shipment={chatBooking.shipments} 
+            user={user} 
+            onClose={() => setChatBooking(null)} 
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {proofModal.isOpen && (
+          <ProofUploadSheet 
+            booking={proofModal.booking} 
+            type={proofModal.type} 
+            user={user} 
+            isOpen={proofModal.isOpen} 
+            onClose={() => setProofModal({ ...proofModal, isOpen: false })} 
+            onSuccess={() => queryClient.invalidateQueries(['bookings'])} 
+          />
         )}
       </AnimatePresence>
 

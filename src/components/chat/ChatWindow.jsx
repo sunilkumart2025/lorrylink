@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Send, X, Paperclip, Mic, ArrowDown, 
-  IndianRupee, Package, Clock, ShieldCheck, MessageSquare
+import {
+  Send,
+  X,
+  Mic,
+  IndianRupee,
+  Package,
+  MessageSquare,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { sendMessage } from '../../lib/db/messages';
@@ -18,7 +22,7 @@ export default function ChatWindow({ shipment, user, onClose }) {
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [offerPrice, setOfferPrice] = useState(shipment?.price || 0);
   const [isListening, setIsListening] = useState(false);
-  
+
   const { messages, isLoading } = useChat(shipment?.id, user.id);
   const scrollRef = useRef(null);
 
@@ -108,196 +112,195 @@ export default function ChatWindow({ shipment, user, onClose }) {
   };
 
   return (
-    <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      style={{
-        position: 'fixed',
-        bottom: 0, left: 0, right: 0,
-        height: '92vh',
-        background: 'var(--color-background)',
-        zIndex: 10000,
-        borderTopLeftRadius: '32px',
-        borderTopRightRadius: '32px',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 -20px 60px rgba(0,0,0,0.5)',
-        border: '1px solid var(--glass-border)'
-      }}
-    >
-      {/* ── Chat Header ─────────────────────────────────────────────── */}
-      <div style={{
-        padding: '24px',
-        borderBottom: '1px solid var(--glass-border)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: 'rgba(255,255,255,0.02)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ position: 'relative' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-              <Package size={24} />
-            </div>
-            <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', width: '14px', height: '14px', borderRadius: '50%', background: 'var(--color-success)', border: '2px solid var(--color-background)' }}></div>
-          </div>
-          <div>
-             <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'white', margin: 0 }}>Active Negotiation</h3>
-             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
-                <span style={{ color: 'var(--color-primary)', fontWeight: '800' }}>#{shipment.id.slice(0, 6).toUpperCase()}</span>
-                <span>•</span>
-                <span>Online</span>
-             </div>
-          </div>
-        </div>
-        <button onClick={onClose} style={{ padding: '12px', borderRadius: '14px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
-           <X size={20} />
-        </button>
-      </div>
+    <div className="mac-window-shell">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="mac-window-backdrop"
+        onClick={onClose}
+      />
 
-      {/* ── Chat Messages (History) ─────────────────────────────────── */}
-      <div 
-        ref={scrollRef}
-        style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+      <motion.div
+        initial={{ y: '100%', opacity: 0.7 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0.7 }}
+        transition={{ type: 'spring', damping: 24, stiffness: 210 }}
+        className="mac-window"
       >
-        {isLoading ? (
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>LOADING HISTORY...</div>
-        ) : (
-          <>
-            {messages.length === 0 && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.3, paddingBottom: '100px' }}>
-                <MessageSquare size={48} style={{ marginBottom: '16px' }} />
-                <div style={{ fontSize: '14px', fontWeight: '800' }}>No messages yet</div>
-                <div style={{ fontSize: '11px', marginTop: '4px' }}>Start the negotiation by typing below</div>
-              </div>
-            )}
-            {messages.map((m, i) => {
-              const isMe = m.sender_id === user.id;
-              return (
-                <motion.div
-                  key={m.id}
-                  initial={{ opacity: 0, x: isMe ? 20 : -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  style={{
-                    alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%'
-                  }}
-                >
-                  {m.type === 'offer' ? (
-                    <NegotiationOffer 
-                      offer={m} 
-                      isSender={isMe} 
-                      onAccept={() => handleAcceptOffer(m)} 
-                    />
-                  ) : (
-                    <div style={{
-                      padding: '16px 20px',
-                      borderRadius: isMe ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
-                      background: isMe ? 'var(--color-primary)' : 'var(--glass-bg)',
-                      color: isMe ? 'white' : 'white',
-                      fontSize: '15px',
-                      lineHeight: 1.5,
-                      boxShadow: isMe ? '0 10px 20px rgba(59,130,246,0.15)' : 'none',
-                      border: isMe ? 'none' : '1px solid var(--glass-border)'
-                    }}>
-                      {m.content}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '6px', textAlign: isMe ? 'right' : 'left', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                    {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      {/* ── Quick Actions ───────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showOfferForm && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            style={{ padding: '24px', background: 'rgba(59,130,246,0.05)', borderTop: '1px solid var(--color-primary)', overflow: 'hidden' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-               <h4 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--color-primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Propose Counter-Offer</h4>
-               <button onClick={() => setShowOfferForm(false)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)' }}><X size={14} /></button>
+        <div className="mac-window-toolbar">
+          <div className="mac-window-heading">
+            <div className="mac-window-controls" aria-hidden="true">
+              <span className="mac-window-control is-red" />
+              <span className="mac-window-control is-yellow" />
+              <span className="mac-window-control is-green" />
             </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-               <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>New Offer Price (₹)</label>
-                  <input 
-                    type="number" 
+
+            <div style={{ position: 'relative' }}>
+              <div className="mac-window-icon">
+                <Package size={22} />
+              </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-3px',
+                  bottom: '-3px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  background: 'var(--color-success)',
+                  border: '2px solid var(--color-surface)',
+                }}
+              />
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div className="mac-window-eyebrow">Direct lane chat</div>
+              <h3 className="mac-window-title">Active Negotiation</h3>
+              <div className="mac-window-subtitle">
+                <span style={{ color: 'var(--color-primary)', fontWeight: 800 }}>
+                  #{shipment.id.slice(0, 6).toUpperCase()}
+                </span>
+                <span>•</span>
+                <span>Online now</span>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={onClose} className="app-close" aria-label="Close negotiation">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div ref={scrollRef} className="mac-window-body">
+          {isLoading ? (
+            <div className="mac-empty-state">
+              <MessageSquare size={42} />
+              <strong>Loading conversation</strong>
+              <span>Fetching the latest negotiation history.</span>
+            </div>
+          ) : (
+            <div className="chat-message-stack">
+              {messages.length === 0 && (
+                <div className="mac-empty-state">
+                  <MessageSquare size={48} />
+                  <strong>No messages yet</strong>
+                  <span>Start the negotiation with a note or send a counter-offer.</span>
+                </div>
+              )}
+
+              {messages.map((message, index) => {
+                const isMe = message.sender_id === user.id;
+                const bubbleClass = [
+                  'chat-message-bubble',
+                  isMe ? 'is-me' : '',
+                  message.type === 'system' ? 'is-system' : '',
+                ].filter(Boolean).join(' ');
+
+                return (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, x: isMe ? 20 : -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.04 }}
+                    className={`chat-message-item${isMe ? ' is-me' : ''}`}
+                  >
+                    {message.type === 'offer' ? (
+                      <NegotiationOffer
+                        offer={message}
+                        isSender={isMe}
+                        onAccept={() => handleAcceptOffer(message)}
+                      />
+                    ) : (
+                      <div className={bubbleClass}>{message.content}</div>
+                    )}
+
+                    <div className="chat-message-time" style={{ textAlign: isMe ? 'right' : 'left' }}>
+                      {message.created_at
+                        ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Just now'}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {showOfferForm && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="chat-offer-strip"
+            >
+              <div className="chat-offer-header">
+                <div className="chat-offer-heading">Propose Counter-Offer</div>
+                <button
+                  onClick={() => setShowOfferForm(false)}
+                  className="app-close"
+                  aria-label="Close counter offer form"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="chat-offer-form">
+                <div className="chat-price-field">
+                  <label className="chat-price-label" htmlFor="offer-price">
+                    New Offer Price (INR)
+                  </label>
+                  <input
+                    id="offer-price"
+                    type="number"
                     value={offerPrice}
                     onChange={(e) => setOfferPrice(e.target.value)}
-                    style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '2px solid var(--color-primary)', color: 'white', fontSize: '24px', fontWeight: '900', padding: '8px 0', outline: 'none' }} 
+                    className="chat-price-input"
                   />
-               </div>
-               <button 
-                onClick={handleSendOffer}
-                style={{ height: '52px', padding: '0 24px', borderRadius: '16px', background: 'var(--color-primary)', color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer' }}
-               >
-                 SEND PROPOSAL
-               </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </div>
 
-      {/* ── Chat Input ─────────────────────────────────────────────── */}
-      <div style={{ padding: '24px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid var(--glass-border)' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button 
-            onClick={() => setShowOfferForm(true)}
-            style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                <button onClick={handleSendOffer} className="trip-action-button is-primary" style={{ minHeight: '52px', paddingInline: '22px' }}>
+                  Send Proposal
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <form onSubmit={handleSendMessage} className="chat-composer">
+          <button
+            type="button"
+            onClick={() => setShowOfferForm((prev) => !prev)}
+            className="chat-icon-button is-offer"
+            aria-label="Open counter offer"
           >
             <IndianRupee size={22} />
           </button>
-          
-          <div style={{ flex: 1, position: 'relative' }}>
-             <input 
-               type="text" 
-               placeholder="Type a message..."
-               value={inputText}
-               onChange={(e) => setInputText(e.target.value)}
-               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-               style={{ width: '100%', height: '52px', borderRadius: '16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', padding: '0 54px 0 20px', color: 'white', fontSize: '15px', outline: 'none' }}
-             />
-             <button 
-              onClick={handleSendMessage}
-              disabled={!inputText.trim()}
-              style={{ position: 'absolute', right: '6px', top: '6px', width: '40px', height: '40px', borderRadius: '12px', background: inputText.trim() ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.3s' }}
-             >
-                <Send size={18} fill="currentColor" />
-             </button>
+
+          <div className="chat-input-wrap">
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="chat-input"
+            />
+            <button type="submit" disabled={!inputText.trim()} className="chat-send-button" aria-label="Send message">
+              <Send size={17} fill="currentColor" />
+            </button>
           </div>
-          
+
           <button
             type="button"
             onClick={handleVoiceInput}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '14px',
-              background: isListening ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.05)',
-              border: isListening ? '1px solid rgba(239,68,68,0.26)' : 'none',
-              color: isListening ? 'var(--color-error)' : 'rgba(255,255,255,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+            className={`chat-icon-button${isListening ? ' is-recording' : ''}`}
+            aria-label="Start voice input"
           >
             <Mic size={22} />
           </button>
-        </div>
-      </div>
-    </motion.div>
+        </form>
+      </motion.div>
+    </div>
   );
 }

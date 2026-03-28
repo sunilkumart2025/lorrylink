@@ -81,6 +81,59 @@ export default function LiveNavigation() {
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [showAlertPortal, setShowAlertPortal] = useState(false);
   const [proximityAlert, setProximityAlert] = useState(null);
+  const [bookingStatus, setBookingStatus] = useState({
+    loading_proof_status: booking?.loading_proof_status || 'none',
+    delivery_proof_status: booking?.delivery_proof_status || 'none'
+  });
+
+  // Real-time listener for verification status
+  useEffect(() => {
+    if (!booking?.id) return;
+
+    const channel = supabase
+      .channel(`booking-status-${booking.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'bookings',
+        filter: `id=eq.${booking.id}`
+      }, (payload) => {
+        setBookingStatus({
+          loading_proof_status: payload.new.loading_proof_status,
+          delivery_proof_status: payload.new.delivery_proof_status
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [booking?.id]);
+
+  // Mock Verification Simulation (Auto-approve after 5s)
+  useEffect(() => {
+    if (bookingStatus.loading_proof_status === 'pending' && booking?.id) {
+      const timer = setTimeout(async () => {
+        await supabase
+          .from('bookings')
+          .update({ loading_proof_status: 'verified' })
+          .eq('id', booking.id);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [bookingStatus.loading_proof_status, booking?.id]);
+
+  useEffect(() => {
+    if (bookingStatus.delivery_proof_status === 'pending' && booking?.id) {
+      const timer = setTimeout(async () => {
+        await supabase
+          .from('bookings')
+          .update({ delivery_proof_status: 'verified' })
+          .eq('id', booking.id);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [bookingStatus.delivery_proof_status, booking?.id]);
 
   const watchRef = useRef(null);
   const lastSyncRef = useRef(0);
@@ -465,14 +518,54 @@ export default function LiveNavigation() {
           {currentMilestone === 'arrived_pickup' && (
             <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '20px', borderRadius: '24px', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
               <h4 style={{ color: 'var(--color-success)', margin: '0 0 12px', fontWeight: '900' }}>ARRIVED AT PICKUP</h4>
-              <ProofUpload 
-                bookingId={booking.id} 
-                type="loading" 
-                onUploadComplete={(url) => {
-                  setLoadingProof(url);
-                  updateMilestone('loaded');
-                }} 
-              />
+              
+              {bookingStatus.loading_proof_status === 'none' || !loadingProof ? (
+                <ProofUpload 
+                  bookingId={booking.id} 
+                  type="loading" 
+                  onUploadComplete={(url) => {
+                    setLoadingProof(url);
+                    // We don't update milestone to 'loaded' yet, 
+                    // we wait for company verification
+                  }} 
+                />
+              ) : bookingStatus.loading_proof_status === 'pending' ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  style={{ 
+                    textAlign: 'center', padding: '24px', borderRadius: '20px', 
+                    background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' 
+                  }}
+                >
+                  <div className="loader-pulse" style={{ margin: '0 auto 16px', background: 'var(--color-warning)' }}></div>
+                  <div style={{ color: 'var(--color-warning)', fontWeight: '900', fontSize: '15px' }}>Verifying Pickup Documents...</div>
+                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Our operations team is reviewing your upload. Please wait.</div>
+                </motion.div>
+              ) : bookingStatus.loading_proof_status === 'verified' ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  style={{ 
+                    textAlign: 'center', padding: '20px', borderRadius: '20px', 
+                    background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--color-success)' 
+                  }}
+                >
+                  <div style={{ color: 'var(--color-success)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <CheckCircle size={20} /> PICKUP VERIFIED
+                  </div>
+                  <button
+                    onClick={() => updateMilestone('loaded')}
+                    className="nav-button is-success"
+                    style={{ width: '100%', marginTop: '16px', height: '52px', color: 'white' }}
+                  >
+                    CONTINUE TO TRANSIT
+                  </button>
+                </motion.div>
+              ) : (
+                <div style={{ color: 'var(--color-error)', textAlign: 'center' }}>
+                  Verification failed. Please re-upload.
+                  <button onClick={() => { setLoadingProof(null); setBookingStatus(prev => ({ ...prev, loading_proof_status: 'none' })); }} className="btn btn-link">Retry Scan</button>
+                </div>
+              )}
             </div>
           )}
 
@@ -498,15 +591,52 @@ export default function LiveNavigation() {
           {currentMilestone === 'arrived_destination' && (
             <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '20px', borderRadius: '24px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
               <h4 style={{ color: 'var(--color-primary)', margin: '0 0 12px', fontWeight: '900' }}>REACHED DESTINATION</h4>
-              <ProofUpload 
-                bookingId={booking.id} 
-                type="delivery" 
-                onUploadComplete={(url) => {
-                  setDeliveryProof(url);
-                  // Open the finishing OTP modal from Bookings logic (we can mock or direct here)
-                  setStatus('arrived'); 
-                }} 
-              />
+              
+              {bookingStatus.delivery_proof_status === 'none' || !deliveryProof ? (
+                <ProofUpload 
+                  bookingId={booking.id} 
+                  type="delivery" 
+                  onUploadComplete={(url) => {
+                    setDeliveryProof(url);
+                  }} 
+                />
+              ) : bookingStatus.delivery_proof_status === 'pending' ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  style={{ 
+                    textAlign: 'center', padding: '24px', borderRadius: '20px', 
+                    background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' 
+                  }}
+                >
+                  <div className="loader-pulse" style={{ margin: '0 auto 16px', background: 'var(--color-primary)' }}></div>
+                  <div style={{ color: 'var(--color-primary)', fontWeight: '900', fontSize: '15px' }}>Verifying Delivery Proof...</div>
+                  <div style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginTop: '6px' }}>Stand by while we confirm the safe delivery.</div>
+                </motion.div>
+              ) : bookingStatus.delivery_proof_status === 'verified' ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  style={{ 
+                    textAlign: 'center', padding: '20px', borderRadius: '20px', 
+                    background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--color-success)' 
+                  }}
+                >
+                  <div style={{ color: 'var(--color-success)', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <CheckCircle size={20} /> DELIVERY VERIFIED
+                  </div>
+                  <button
+                    onClick={() => setStatus('arrived')}
+                    className="nav-button is-success"
+                    style={{ width: '100%', marginTop: '16px', height: '52px', color: 'white' }}
+                  >
+                    PROCEED TO COMPLETION
+                  </button>
+                </motion.div>
+              ) : (
+                <div style={{ color: 'var(--color-error)', textAlign: 'center' }}>
+                  Verification failed. Please re-upload.
+                  <button onClick={() => { setDeliveryProof(null); setBookingStatus(prev => ({ ...prev, delivery_proof_status: 'none' })); }} className="btn btn-link">Retry Scan</button>
+                </div>
+              )}
             </div>
           )}
 

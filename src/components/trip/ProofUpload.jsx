@@ -51,16 +51,16 @@ export default function ProofUpload({ bookingId, type = 'loading', onUploadCompl
     setUploading(true);
     try {
       const fileName = `${bookingId}_${type}_${Date.now()}.jpg`;
-      const filePath = `trip-proofs/${fileName}`;
+      const filePath = `verifications/${fileName}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('trip-proofs')
+        .from('booking-verifications')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('trip-proofs')
+        .from('booking-verifications')
         .getPublicUrl(filePath);
 
       // Save to Biltys (Choice 6)
@@ -76,8 +76,23 @@ export default function ProofUpload({ bookingId, type = 'loading', onUploadCompl
       }
 
       const field = type === 'loading' ? 'loading_proof_url' : 'delivery_proof_url';
-      await supabase.from('bookings').update({ [field]: publicUrl }).eq('id', bookingId);
+      const statusField = type === 'loading' ? 'loading_proof_status' : 'delivery_proof_status';
+      const timeField = type === 'loading' ? 'loading_proof_uploaded_at' : 'delivery_proof_uploaded_at';
       
+      await supabase.from('bookings').update({ 
+        [field]: publicUrl,
+        [statusField]: 'pending',
+        [timeField]: new Date().toISOString()
+      }).eq('id', bookingId);
+      
+      // Mock Auto-Approve (for demo purposes)
+      setTimeout(async () => {
+        await supabase
+          .from('bookings')
+          .update({ [statusField]: 'verified' })
+          .eq('id', bookingId);
+      }, 5000);
+
       setSuccess(true);
       if (onUploadComplete) onUploadComplete(publicUrl);
     } catch (err) {

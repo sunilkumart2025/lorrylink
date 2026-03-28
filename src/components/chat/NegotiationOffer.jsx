@@ -1,42 +1,53 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { IndianRupee, Check, X, ShieldCheck } from 'lucide-react';
+import { Check, X, ShieldCheck } from 'lucide-react';
 
 /**
  * NegotiationOffer: A specialized chat bubble for price proposals.
  * Features: Accept/Reject actions for the receiver.
  */
 export default function NegotiationOffer({ offer, isSender, onAccept, onReject }) {
-  const { price, weight, expiry } = offer.metadata || {};
+  const { price, weight } = offer.metadata || {};
 
   return (
     <motion.div
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       style={{
-        background: 'var(--glass-bg)',
-        borderRadius: '20px',
-        border: '1px solid var(--color-primary)',
+        background: 'var(--window-surface)',
+        borderRadius: '22px',
+        border: '1px solid rgba(59, 130, 246, 0.18)',
         padding: '16px',
         margin: '12px 0',
         width: '100%',
         maxWidth: '280px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+        boxShadow: 'var(--window-shadow)',
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        isolation: 'isolate',
       }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.12), transparent 85px), radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 30%)',
+          pointerEvents: 'none',
+        }}
+      />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--color-primary)', letterSpacing: '1px' }}>PRICE PROPOSAL</span>
         <ShieldCheck size={14} color="var(--color-primary)" />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
-        <span style={{ fontSize: '24px', fontWeight: '900', color: 'white' }}>₹{price?.toLocaleString()}</span>
-        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>/ total</span>
+        <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-text-primary)' }}>₹{price?.toLocaleString()}</span>
+        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>/ total</span>
       </div>
 
-      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
+      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
         For {weight} Tons • Expected Trip
       </div>
 
@@ -46,7 +57,7 @@ export default function NegotiationOffer({ offer, isSender, onAccept, onReject }
             onClick={onReject}
             style={{ 
               flex: 1, height: '36px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.2)', 
-              background: 'rgba(239,68,68,0.05)', color: 'var(--color-danger)', fontSize: '11px', fontWeight: '800', cursor: 'pointer' 
+              background: 'rgba(239,68,68,0.05)', color: 'var(--color-error)', fontSize: '11px', fontWeight: '800', cursor: 'pointer' 
             }}
           >
             <X size={14} style={{ marginRight: '4px' }} /> REJECT
@@ -66,7 +77,7 @@ export default function NegotiationOffer({ offer, isSender, onAccept, onReject }
       )}
 
       {isSender && (
-        <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+        <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textAlign: 'center', borderTop: '1px solid var(--glass-border)', paddingTop: '10px' }}>
           Awaiting shipper response...
         </div>
       )}

@@ -69,3 +69,46 @@ export async function updateBookingStatus(bookingId, status) {
 export async function completeBooking(bookingId) {
   return updateBookingStatus(bookingId, 'completed');
 }
+/**
+ * Upload loading or delivery proof.
+ * @param {string} bookingId
+ * @param {'loading' | 'delivery'} type
+ * @param {File} file
+ * @param {string} userId
+ */
+export async function uploadBookingProof(bookingId, type, file, userId) {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${bookingId}_${type}_${Date.now()}.${fileExt}`;
+  const filePath = `${userId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('booking-verifications')
+    .upload(filePath, file);
+
+  if (uploadError) throw uploadError;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('booking-verifications')
+    .getPublicUrl(filePath);
+
+  const updateData = type === 'loading' ? {
+    loading_proof_url: publicUrl,
+    loading_proof_status: 'pending',
+    loading_proof_uploaded_at: new Date().toISOString()
+  } : {
+    delivery_proof_url: publicUrl,
+    delivery_proof_status: 'pending',
+    delivery_proof_uploaded_at: new Date().toISOString()
+  };
+
+  // If this is loading proof, we also update the main status to in_transit?
+  // User didn't specify, but usually loading proof is what triggers in_transit.
+  // I'll stick to just updating the proof status as requested.
+
+  return supabase
+    .from('bookings')
+    .update(updateData)
+    .eq('id', bookingId)
+    .select()
+    .single();
+}

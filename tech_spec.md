@@ -12,7 +12,7 @@ LorryLink uses **Supabase** (Postgres + PostGIS) for data, auth, and real-time s
 
 | Table | Purpose | Key Columns |
 | :--- | :--- | :--- |
-| **`profiles`** | User data | `id`, `role` (driver/business), `name`, `phone`, `home_city` |
+| **`profiles`** | User data | `id`, `rolea` (driver/business), `name`, `phone`, `home_city` |
 | **`shipments`** | Load requests | `id`, `pickup_address`, `drop_address`, `pickup_location` (geography), `drop_location` (geography), `weight_kg`, `price`, `status` (`pending`, `in_transit`, `completed`) |
 | **`bookings`** | Accepted loads | `id`, `shipment_id`, `driver_id`, `agreed_price`, `status`, `current_milestone` |
 | **`tracking`** | Live GPS pings | `id`, `booking_id`, `location` (geography), `speed`, `recorded_at` |
