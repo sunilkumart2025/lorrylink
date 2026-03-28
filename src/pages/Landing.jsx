@@ -46,7 +46,7 @@ export default function Landing() {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/login')}
+          onClick={() => navigate('/driver/lang')}
           style={{
             padding: '10px 18px',
             borderRadius: '12px',
@@ -102,7 +102,7 @@ export default function Landing() {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/login')}
+          onClick={() => navigate('/driver/lang')}
           style={{
             marginTop: '28px',
             padding: '16px 28px',
@@ -164,7 +164,7 @@ export default function Landing() {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/login')}
+          onClick={() => navigate('/driver/lang')}
           style={{
             padding: '18px 32px',
             borderRadius: '18px',
