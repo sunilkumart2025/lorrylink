@@ -15,6 +15,7 @@ import { useStore } from '../../store/useStore';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import RecentReviews from '../../components/common/RecentReviews';
 import ThemeToggle from '../../components/common/ThemeToggle';
+import { parseWKT } from '../../utils/geo';
 
 export default function Home() {
   const { t } = useTranslation();
@@ -212,7 +213,17 @@ export default function Home() {
             </div>
 
             <button
-              onClick={() => navigate('/driver/navigate', { state: { booking: activeBooking } })}
+              onClick={() => {
+                const pCoords = parseWKT(activeBooking.shipments?.pickup_location);
+                const dCoords = parseWKT(activeBooking.shipments?.drop_location);
+                navigate('/driver/navigate', { 
+                  state: { 
+                    booking: activeBooking,
+                    pickup: pCoords ? { ...pCoords, address: activeBooking.shipments?.pickup_address } : null,
+                    drop: dCoords ? { ...dCoords, address: activeBooking.shipments?.drop_address } : null
+                  } 
+                });
+              }}
               className="btn btn-primary btn-block"
               style={{ height: '56px', borderRadius: '18px' }}
             >

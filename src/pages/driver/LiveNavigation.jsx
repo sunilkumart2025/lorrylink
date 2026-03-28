@@ -13,6 +13,7 @@ import WebpageMap from '../../components/maps/WebpageMap';
 import TripStatusStepper from '../../components/trip/TripStatusStepper';
 import ProofUpload from '../../components/trip/ProofUpload';
 import '../../styles/MapTheme.css';
+import { parseWKT, calculateDistance } from '../../utils/geo';
 
 // ── OSRM API Utilities ──────────────────────────────────────────────────────
 const fetchOSRMRoute = async (origin, destination) => {
@@ -39,14 +40,27 @@ const formatDuration = (seconds) => {
   return `${mins}m`;
 };
 
+const ESTIMATED_SPEED_KMH = 50; // Highway average
+
 export default function LiveNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useStore();
 
   const booking = location.state?.booking;
-  const pickup = location.state?.pickup || { lat: 13.0827, lng: 80.2707, address: 'Chennai Port' };
-  const drop   = location.state?.drop   || { lat: 18.5204, lng: 73.8567, address: 'Pune Warehouse' };
+  
+  // Dynamic Coordinate Extraction (Pillar 1.0/2.0 Fix)
+  const pickup = useMemo(() => {
+    if (location.state?.pickup) return location.state.pickup;
+    const p = parseWKT(booking?.shipments?.pickup_location);
+    return p ? { ...p, address: booking?.shipments?.pickup_address } : { lat: 13.0827, lng: 80.2707, address: 'Chennai Port' };
+  }, [location.state, booking]);
+
+  const drop = useMemo(() => {
+    if (location.state?.drop) return location.state.drop;
+    const d = parseWKT(booking?.shipments?.drop_location);
+    return d ? { ...d, address: booking?.shipments?.drop_address } : { lat: 18.5204, lng: 73.8567, address: 'Pune Warehouse' };
+  }, [location.state, booking]);
 
   const [livePos, setLivePos] = useState(null);
   const [routeData, setRouteData] = useState(null);
@@ -60,6 +74,7 @@ export default function LiveNavigation() {
   const [isWidgetMode, setIsWidgetMode] = useState(false);
   const [showProofUpload, setShowProofUpload] = useState(false);
   const [loadingProof, setLoadingProof] = useState(booking?.loading_proof_url);
+  const [isFlyway, setIsFlyway] = useState(false);
   const [deliveryProof, setDeliveryProof] = useState(booking?.delivery_proof_url);
 
   const watchRef = useRef(null);
@@ -67,6 +82,9 @@ export default function LiveNavigation() {
 
   const fetchRoute = useCallback(async (origin, destination) => {
     setLoading(true);
+    setGpsError(null);
+    setIsFlyway(false);
+    
     try {
       const route = await fetchOSRMRoute(origin, destination);
       setRouteData(route);
@@ -77,8 +95,15 @@ export default function LiveNavigation() {
         setNextStep(route.legs[0].steps[0].maneuver.instruction);
       }
     } catch (err) {
-      console.error(err);
-      setGpsError('Failed to fetch route');
+      console.warn("OSRM Failure, falling back to Haversine:", err);
+      // Pillar 4.5 Fallback: Calculate straight-line distance if routing fails
+      const directDistKm = calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+      const approxSeconds = (directDistKm / ESTIMATED_SPEED_KMH) * 3600;
+      
+      setDistLeft(`${directDistKm.toFixed(1)} km (Approx)`);
+      setEta(formatDuration(approxSeconds));
+      setIsFlyway(true);
+      setRouteData(null); // Clear previous route
     } finally {
       setLoading(false);
     }
@@ -135,12 +160,25 @@ export default function LiveNavigation() {
         const now = Date.now();
         if (booking?.id && now - lastSyncRef.current > 10000) {
           lastSyncRef.current = now;
+          
+          // 1. Historical Log (Per-booking path)
           await supabase.from('tracking').upsert({
             booking_id: booking.id,
             location: `POINT(${newPos.lng} ${newPos.lat})`,
             speed: pos.coords.speed || 0,
             recorded_at: new Date().toISOString()
           });
+
+          // 2. Real-time Live State (Per-device/driver current position)
+          // Pillar 6.0: Constant goods monitoring
+          if (user?.id) {
+            await supabase.from('user_locations').upsert({
+              device_id: user.id,
+              latitude: newPos.lat,
+              longitude: newPos.lng,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'device_id' });
+          }
         }
 
         // Advanced Milestone Auto-Detection (Radius based)
@@ -223,6 +261,13 @@ export default function LiveNavigation() {
           </>
         )}
 
+        {isFlyway && (
+          <Polyline 
+            positions={[[pickup.lat, pickup.lng], [drop.lat, drop.lng]]}
+            pathOptions={{ color: 'var(--color-warning)', weight: 4, dashArray: '10, 10', opacity: 0.6 }}
+          />
+        )}
+
         <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon}>
           <Popup>Pickup: {pickup.address}</Popup>
         </Marker>
@@ -277,7 +322,18 @@ export default function LiveNavigation() {
             {/* Pillar 4.0: Modern Trip Progress Stepper */}
             <TripStatusStepper currentMilestone={currentMilestone} />
 
-            {status === 'navigating' && nextStep && (
+            {isFlyway && (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="map-glass-panel"
+                style={{ padding: '12px 16px', background: 'rgba(249, 115, 22, 0.2)', border: '1px solid var(--color-warning)', marginTop: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <AlertTriangle size={16} color="var(--color-warning)" />
+                  <span style={{ fontSize: '12px', color: 'white', fontWeight: '800' }}>Impossible Route Detected. Showing straight-line estimate.</span>
+                </div>
+              </motion.div>
+            )}
+
+            {status === 'navigating' && nextStep && !isFlyway && (
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="map-glass-panel"
                 style={{ padding: '16px', display: 'flex', gap: '16px', alignItems: 'center', background: 'rgba(47, 118, 255, 0.9)' }}>

@@ -10,6 +10,7 @@ import { useReviews } from '../../hooks/useReviews';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import { updateBookingStatus } from '../../lib/db/bookings';
 import TripStatusStepper from '../../components/trip/TripStatusStepper';
+import { parseWKT } from '../../utils/geo';
 
 export default function Bookings() {
   const { user } = useStore();
@@ -91,17 +92,6 @@ export default function Bookings() {
     }
   };
 
-  const parseWKT = (wkt) => {
-    if (!wkt) return null;
-    if (typeof wkt === 'string') {
-      const m = wkt.match(/POINT\(([^ ]+)\s+([^)]+)\)/);
-      return m ? { lat: parseFloat(m[2]), lng: parseFloat(m[1]) } : null;
-    }
-    if (typeof wkt === 'object' && wkt.coordinates) {
-      return { lat: wkt.coordinates[1], lng: wkt.coordinates[0] };
-    }
-    return null;
-  };
 
   const getCity = (address) => {
     if (!address) return 'Location';
