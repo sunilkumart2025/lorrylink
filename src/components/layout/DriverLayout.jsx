@@ -1,76 +1,129 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { Home, BarChart3, Wallet, User, ClipboardList } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Home, BarChart3, Wallet, User, ClipboardList, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { supabase } from '../../lib/supabase';
+import { useStore } from '../../store/useStore';
 import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
 
 export default function DriverLayout() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { setUser } = useStore();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser({ id: null });
+    navigate('/driver/login');
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-background)' }}>
-      {/* Premium Glass Header */}
-      <header style={{ 
-        backgroundColor: 'rgba(17, 24, 39, 0.9)',
-        backdropFilter: 'blur(15px)',
-        color: 'white', 
-        padding: '12px 16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        <h2 style={{ margin: 0, fontWeight: '900', fontSize: '20px', letterSpacing: '-1px' }}>
-          LoadLink<span style={{ color: 'var(--color-primary)' }}>.</span>
-        </h2>
-        <LanguageSwitcher />
-      </header>
+    <div className="driver-layout">
+      {/* ── Desktop Sidebar ─────────────────────────────────────────────── */}
+      <aside className="desktop-only side-nav driver-sidebar">
+        <div className="driver-sidebar-brand">
+          <h2>
+            LoadLink<span style={{ color: 'var(--color-primary)' }}>.</span>
+          </h2>
+          <p>
+            Driver Portal
+          </p>
+        </div>
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, overflowY: 'auto', paddingBottom: '90px' }}>
-        <Outlet />
-      </main>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+          <SidebarItem to="/driver/home" icon={<Home size={20} />} label={t('nav.home')} />
+          <SidebarItem to="/driver/network" icon={<BarChart3 size={20} />} label={t('nav.market')} />
+          <SidebarItem to="/driver/bookings" icon={<ClipboardList size={20} />} label={t('nav.bookings')} />
+          <SidebarItem to="/driver/wallet" icon={<Wallet size={20} />} label={t('nav.wallet')} />
+          <SidebarItem to="/driver/profile" icon={<User size={20} />} label={t('nav.profile')} />
+        </div>
 
-      {/* Modern Floating Navigation */}
-      <nav style={{
-        position: 'fixed',
-        bottom: 0,
-        width: '100%',
-        backgroundColor: 'rgba(17, 24, 39, 0.97)',
-        backdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex',
-        justifyContent: 'space-around',
-        padding: '12px 0 24px', 
-        zIndex: 1000
-      }}>
-        <NavItem to="/driver/home" icon={<Home size={22} />} label={t('nav.home')} />
-        <NavItem to="/driver/network" icon={<BarChart3 size={22} />} label={t('nav.market')} />
-        <NavItem to="/driver/bookings" icon={<ClipboardList size={22} />} label={t('nav.bookings')} />
-        <NavItem to="/driver/wallet" icon={<Wallet size={22} />} label={t('nav.wallet')} />
-        <NavItem to="/driver/profile" icon={<User size={22} />} label={t('nav.profile')} />
-      </nav>
+        <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--glass-border)' }}>
+          <div className="app-button-row" style={{ marginBottom: '16px' }}>
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
+          <button
+            onClick={handleLogout}
+            className="btn btn-ghost btn-block"
+            style={{ justifyContent: 'flex-start', border: 'none' }}
+          >
+            <LogOut size={18} /> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main Layout ─────────────────────────────────────────────────── */}
+      <div className="main-content driver-main">
+        {/* Mobile-Only Glass Header */}
+        <header className="mobile-only driver-mobile-header">
+          <div className="driver-mobile-header-inner">
+            <div className="driver-mobile-brand">
+              <div className="driver-mobile-brand-copy">
+                <h2>
+                  LoadLink<span style={{ color: 'var(--color-primary)' }}>.</span>
+                </h2>
+                <p>Driver portal</p>
+              </div>
+            </div>
+
+            <div className="driver-mobile-controls">
+              <LanguageSwitcher />
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        {/* Dynamic Route Content */}
+        <main className="driver-main-content">
+          <Outlet />
+        </main>
+
+        {/* Mobile-Only Navigation */}
+        <nav className="mobile-only driver-mobile-nav" aria-label="Driver navigation">
+          <div className="driver-mobile-nav-shell">
+            <div className="driver-mobile-nav-inner">
+              <NavItem to="/driver/home" icon={<Home size={22} />} label={t('nav.home')} />
+              <NavItem to="/driver/network" icon={<BarChart3 size={22} />} label={t('nav.market')} />
+              <NavItem to="/driver/bookings" icon={<ClipboardList size={22} />} label={t('nav.bookings')} />
+              <NavItem to="/driver/wallet" icon={<Wallet size={22} />} label={t('nav.wallet')} />
+              <NavItem to="/driver/profile" icon={<User size={22} />} label={t('nav.profile')} />
+            </div>
+          </div>
+        </nav>
+      </div>
     </div>
+  );
+}
+
+function SidebarItem({ to, icon, label }) {
+  return (
+    <NavLink
+      to={to}
+      className="sidebar-item"
+      style={({ isActive }) => ({
+        background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+        color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+        border: isActive ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid transparent'
+      })}
+    >
+      {icon}
+      <span style={{ fontSize: '14px' }}>{label}</span>
+    </NavLink>
   );
 }
 
 function NavItem({ to, icon, label }) {
   return (
-    <NavLink 
-      to={to} 
+    <NavLink
+      to={to}
+      className={({ isActive }) => `mobile-nav-item${isActive ? ' is-active' : ''}`}
       style={({ isActive }) => ({
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        flex: 1,
         color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-        textDecoration: 'none'
       })}
     >
-      {icon}
-      <span style={{ fontSize: '12px', marginTop: '4px', fontWeight: '500' }}>{label}</span>
+      <span className="mobile-nav-icon">{icon}</span>
+      <span className="mobile-nav-label">{label}</span>
     </NavLink>
   );
 }

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { TrendingUp, Truck, CheckCircle, MapPin, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, ChevronRight, TrendingUp, Truck } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { findShipmentChains } from '../../lib/routing';
 import { supabase } from '../../lib/supabase';
@@ -9,105 +10,158 @@ import RoutePreviewMap from '../../components/maps/RoutePreviewMap';
 
 export default function ComboTrips() {
   const { user } = useStore();
+  const navigate = useNavigate();
 
   const { data: shipments, isLoading } = useQuery({
     queryKey: ['shipments-combo'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('shipments')
-        .select('*')
-        .eq('status', 'pending');
+      const { data, error } = await supabase.from('shipments').select('*').eq('status', 'pending');
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   const combos = shipments ? findShipmentChains(shipments, user?.home_city) : [];
 
   return (
-    <div style={{ padding: 'var(--spacing-md)', paddingBottom: '80px' }}>
-      <header className="mb-xl">
-        <h1 style={{ color: 'var(--color-primary)', fontSize: '24px', fontWeight: '900' }}>BUILD MY TRIP</h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Smart Chaining Engine (Pillar 4.2)</p>
-      </header>
+    <div className="app-page">
+      <div className="card-glass app-surface-hero" style={{ marginBottom: '20px' }}>
+        <div className="app-surface-kicker">
+          <TrendingUp size={14} />
+          Combo Planning
+        </div>
+        <h1 className="app-surface-title">Multi-leg chains with a cleaner planning view</h1>
+        <p className="app-surface-copy">
+          Route chaining now reads like a premium planning surface, with each leg, projected revenue, and review action sized for faster comparison.
+        </p>
+      </div>
 
       {isLoading ? (
-        <div className="flex justify-center p-xl">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="card-glass app-empty-card">
+          <div className="loader-pulse"></div>
+          <p style={{ marginTop: '14px', color: 'var(--color-text-muted)' }}>Building profitable trip chains...</p>
         </div>
       ) : (
-        <div className="flex-col gap-lg">
+        <div className="app-stacked-list">
           {combos.length === 0 && (
-            <div className="card-glass text-center p-xl">
-               <Truck size={48} color="rgba(255,255,255,0.1)" style={{ margin: '0 auto 15px' }} />
-               <p>No profitable combos found for your current route yet.</p>
+            <div className="card-glass app-empty-card">
+              <Truck size={44} color="var(--color-text-muted)" style={{ opacity: 0.16, marginBottom: '12px' }} />
+              <h3 style={{ color: 'var(--color-text-primary)' }}>No profitable combos found</h3>
+              <p style={{ color: 'var(--color-text-muted)', marginTop: '6px' }}>
+                New chain opportunities will appear here when the route graph improves.
+              </p>
             </div>
           )}
 
-          {combos.map((combo, idx) => (
-            <motion.div 
-              key={combo.id} 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="card-glass" 
-              style={{ padding: '24px', marginBottom: '20px' }}
+          {combos.map((combo, index) => (
+            <motion.div
+              key={combo.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="card-glass app-data-card"
             >
-              <div className="flex justify-between items-center mb-lg">
-                 <div style={{ 
-                   fontSize: '11px', 
-                   fontWeight: '900', 
-                   padding: '4px 12px', 
-                   backgroundColor: 'rgba(29, 233, 182, 0.1)', 
-                   color: 'var(--color-primary)', 
-                   borderRadius: '20px',
-                   letterSpacing: '1px'
-                 }}>
-                   {combo.efficiency} COMBO
-                 </div>
-                 <TrendingUp size={20} color="var(--color-primary)" />
+              <div className="app-list-row" style={{ marginBottom: '18px' }}>
+                <div className="app-list-main">
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '16px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(59,130,246,0.12)',
+                      color: 'var(--color-primary)',
+                    }}
+                  >
+                    <TrendingUp size={18} />
+                  </div>
+                  <div className="app-list-copy">
+                    <div className="app-list-title">{combo.efficiency} combo route</div>
+                    <div className="app-list-subtitle">{combo.legs.length} freight legs chained together</div>
+                  </div>
+                </div>
+                <div className="badge badge-success" style={{ padding: '8px 14px' }}>
+                  ₹{combo.totalEarning.toLocaleString()}
+                </div>
               </div>
 
-              <div style={{ height: '180px', marginBottom: '20px', borderRadius: '16px', overflow: 'hidden' }}>
+              <div style={{ height: '220px', marginBottom: '18px', borderRadius: '24px', overflow: 'hidden' }}>
                 <RoutePreviewMap legs={combo.legs} />
               </div>
 
-              <div className="flex-col gap-md mb-lg">
-                {combo.legs.map((leg, lIdx) => (
-                  <div key={lIdx} className="flex items-center gap-md">
-                    <div className="flex-col items-center">
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--color-primary)' }}></div>
-                      {lIdx < combo.legs.length - 1 && <div style={{ width: '2px', height: '30px', backgroundColor: 'rgba(255,255,255,0.1)' }}></div>}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                       <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Leg {lIdx + 1}</div>
-                       <div style={{ fontSize: '15px', fontWeight: 'bold' }}>{leg.from} <ChevronRight size={14} style={{ margin: '0 4px' }} /> {leg.to}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                       <div style={{ fontWeight: '900', color: 'var(--color-primary)' }}>₹{leg.earning.toLocaleString()}</div>
+              <div className="app-stacked-list" style={{ gap: '10px', marginBottom: '18px' }}>
+                {combo.legs.map((leg, legIndex) => (
+                  <div key={`${combo.id}-${legIndex}`} className="card-glass app-list-card tight">
+                    <div className="app-list-row">
+                      <div className="app-list-main">
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(59,130,246,0.12)',
+                            color: 'var(--color-primary)',
+                            fontSize: '12px',
+                            fontWeight: '900',
+                          }}
+                        >
+                          {legIndex + 1}
+                        </div>
+                        <div className="app-list-copy">
+                          <div className="app-list-title" style={{ fontSize: '14px' }}>
+                            {leg.from} <ChevronRight size={14} style={{ verticalAlign: 'middle' }} /> {leg.to}
+                          </div>
+                          <div className="app-list-subtitle">Leg {legIndex + 1}</div>
+                        </div>
+                      </div>
+                      <div className="app-list-value" style={{ color: 'var(--color-success)' }}>
+                        ₹{leg.earning.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                 <div className="flex justify-between mb-xs">
-                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>Total Est. Revenue</span>
-                    <span style={{ fontWeight: '900', color: 'var(--color-success)', fontSize: '18px' }}>₹{combo.totalEarning.toLocaleString()}</span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>vs Direct Route</span>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>₹{(combo.totalEarning * 0.75).toLocaleString()}</span>
-                 </div>
+              <div className="app-info-row">
+                <div className="app-note-surface" style={{ flex: 1 }}>
+                  <strong>Total est. revenue:</strong> ₹{combo.totalEarning.toLocaleString()}
+                </div>
+                <div className="app-note-surface" style={{ flex: 1 }}>
+                  <strong>Direct route baseline:</strong> ₹{Math.round(combo.totalEarning * 0.75).toLocaleString()}
+                </div>
               </div>
 
-              <button className="btn btn-primary btn-block mt-lg" style={{ height: '56px', borderRadius: '16px', boxShadow: '0 10px 20px rgba(0, 191, 165, 0.2)' }}>
-                ACCEPT COMBINED TRIP <CheckCircle size={20} style={{ marginLeft: '10px' }} />
+              <button
+                onClick={() => navigate('/driver/matches')}
+                className="app-button is-primary is-block"
+                style={{ marginTop: '20px', minHeight: '58px' }}
+              >
+                <CheckCircle size={18} /> Review in freight market
               </button>
             </motion.div>
           ))}
         </div>
       )}
+
+      <style>{`
+        .loader-pulse {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: 3px solid var(--color-primary);
+          border-top-color: transparent;
+          animation: combo-spin 0.8s linear infinite;
+        }
+
+        @keyframes combo-spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

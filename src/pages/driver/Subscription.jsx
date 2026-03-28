@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Shield, Check, Star, Zap, 
-  Crown, ArrowRight, X, IndianRupee,
-  Award, Heart, ShieldCheck, Navigation,
-  Bell, LifeBuoy, Fuel, Settings, BarChart3,
-  Users, Smartphone, CheckCircle2
+import {
+  Award,
+  Bell,
+  CheckCircle2,
+  Crown,
+  Fuel,
+  Heart,
+  IndianRupee,
+  LifeBuoy,
+  Navigation,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Smartphone,
+  Users,
+  Zap,
+  BarChart3,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
@@ -15,239 +26,254 @@ const TIERS = [
   {
     id: 'silver',
     name: 'Silver',
-    description: 'The Marketplace Essential',
+    description: 'The marketplace essential',
     prices: { monthly: 499, yearly: 3999 },
-    icon: <Shield size={28} />,
+    icon: Shield,
     color: '#94A3B8',
     features: [
-      { text: 'Browse & Bid on Loads', icon: <Smartphone size={14} /> },
-      { text: 'Basic Profile Listing', icon: <CheckCircle2 size={14} /> },
-      { text: 'Standard GPS Navigation', icon: <Navigation size={14} /> },
-      { text: 'Digital Document Vault', icon: <ShieldCheck size={14} /> }
-    ]
+      { text: 'Browse and bid on loads', icon: Smartphone },
+      { text: 'Basic profile listing', icon: CheckCircle2 },
+      { text: 'Standard GPS navigation', icon: Navigation },
+      { text: 'Digital document vault', icon: ShieldCheck },
+    ],
   },
   {
     id: 'gold',
     name: 'Gold',
-    description: 'The Professional Choice',
+    description: 'The professional choice',
     prices: { monthly: 1299, yearly: 12499 },
-    icon: <Crown size={28} />,
+    icon: Crown,
     color: '#F59E0B',
     featured: true,
     features: [
-      { text: 'All Silver Features', icon: <CheckCircle2 size={14} /> },
-      { text: 'Push Alerts for Premium Loads', icon: <Bell size={14} /> },
-      { text: 'Prioritized Truck Visibility', icon: <Zap size={14} /> },
-      { text: 'Accident Insurance (Basic)', icon: <Heart size={14} /> },
-      { text: '24/7 Emergency Help', icon: <LifeBuoy size={14} /> }
-    ]
+      { text: 'All Silver features', icon: CheckCircle2 },
+      { text: 'Premium load push alerts', icon: Bell },
+      { text: 'Prioritized truck visibility', icon: Zap },
+      { text: 'Basic accident insurance', icon: Heart },
+      { text: '24/7 emergency help', icon: LifeBuoy },
+    ],
   },
   {
     id: 'platinum',
     name: 'Platinum',
-    description: 'High-Performance Earning',
+    description: 'High-performance earning',
     prices: { monthly: 2499, yearly: 22499 },
-    icon: <Award size={28} />,
+    icon: Award,
     color: '#06B6D4',
     features: [
-      { text: 'All Gold Features', icon: <CheckCircle2 size={14} /> },
-      { text: 'Lower Platform Commissions', icon: <IndianRupee size={14} /> },
-      { text: 'Fuel & Maintenance Discounts', icon: <Fuel size={14} /> },
-      { text: 'Offline Maps & Live Traffic', icon: <Navigation size={14} /> },
-      { text: 'Comprehensive Health Plan', icon: <Shield size={14} /> }
-    ]
+      { text: 'All Gold features', icon: CheckCircle2 },
+      { text: 'Lower platform commissions', icon: IndianRupee },
+      { text: 'Fuel and maintenance discounts', icon: Fuel },
+      { text: 'Offline maps and live traffic', icon: Navigation },
+      { text: 'Comprehensive health plan', icon: Shield },
+    ],
   },
   {
     id: 'fleet',
     name: 'Fleet',
-    description: 'Enterprise Scalability',
+    description: 'Enterprise scalability',
     prices: { monthly: 4999, yearly: 44999 },
-    icon: <Users size={28} />,
+    icon: Users,
     color: '#8B5CF6',
     features: [
-      { text: 'All Platinum Features', icon: <CheckCircle2 size={14} /> },
-      { text: 'Multi-Driver Management', icon: <Settings size={14} /> },
-      { text: 'Real-time Fleet Telematics', icon: <BarChart3 size={14} /> },
-      { text: 'Earning Guarantees', icon: <Award size={14} /> },
-      { text: 'Dedicated Account Manager', icon: <Users size={14} /> }
-    ]
-  }
+      { text: 'All Platinum features', icon: CheckCircle2 },
+      { text: 'Multi-driver management', icon: Settings },
+      { text: 'Real-time telematics', icon: BarChart3 },
+      { text: 'Earning guarantees', icon: Award },
+      { text: 'Dedicated account manager', icon: Users },
+    ],
+  },
 ];
 
 export default function Subscription() {
   const navigate = useNavigate();
   const { user, setUser } = useStore();
-  const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly' | 'yearly'
+  const [billingCycle, setBillingCycle] = useState('yearly');
 
   const handleSubscribe = async (tierId, cycle) => {
     if (!user?.id) return;
-    
+
     const tier = tierId.toUpperCase();
-    const expiresAt = cycle === 'yearly' 
+    const expiresAt = cycle === 'yearly'
       ? new Date(Date.now() + 365 * 86400000).toISOString()
       : new Date(Date.now() + 30 * 86400000).toISOString();
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           subscription_tier: tier,
           subscription_billing_cycle: cycle,
-          subscription_expires_at: expiresAt
+          subscription_expires_at: expiresAt,
         })
         .eq('id', user.id);
 
       if (error) throw error;
-      
-      setUser({ 
+
+      setUser({
         subscription_tier: tier,
         subscription_billing_cycle: cycle,
-        subscription_expires_at: expiresAt
+        subscription_expires_at: expiresAt,
       });
+
       alert(`Success! You are now subscribed to ${tierId.toUpperCase()} (${cycle}).`);
       navigate('/driver/home');
     } catch (err) {
-      console.error("Subscription error:", err);
-      alert("Failed to update subscription. Please check your network.");
+      console.error('Subscription error:', err);
+      alert('Failed to update subscription. Please check your network.');
     }
   };
 
   return (
-    <div style={{ padding: '24px', paddingBottom: '120px', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: '900', color: 'white', marginBottom: '12px', letterSpacing: '-1px' }}>UNLOCK YOUR LIMITS</h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '15px', fontWeight: '600', marginBottom: '32px' }}>Choose the tier that fuels your business growth.</p>
-        
-        {/* Toggle Billing Cycle */}
-        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <button 
-            onClick={() => setBillingCycle('monthly')}
-            style={{ 
-              padding: '10px 24px', borderRadius: '12px', border: 'none', 
-              background: billingCycle === 'monthly' ? 'white' : 'transparent',
-              color: billingCycle === 'monthly' ? 'black' : 'rgba(255,255,255,0.5)',
-              fontWeight: '800', fontSize: '13px', cursor: 'pointer', transition: '0.3s'
-            }}
-          >
-            MONTHLY
-          </button>
-          <button 
-            onClick={() => setBillingCycle('yearly')}
-            style={{ 
-              padding: '10px 24px', borderRadius: '12px', border: 'none', 
-              background: billingCycle === 'yearly' ? 'white' : 'transparent',
-              color: billingCycle === 'yearly' ? 'black' : 'rgba(255,255,255,0.5)',
-              fontWeight: '800', fontSize: '13px', cursor: 'pointer', transition: '0.3s',
-              position: 'relative'
-            }}
-          >
-            YEARLY
-            {billingCycle !== 'yearly' && (
-              <span style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'var(--color-success)', color: 'white', fontSize: '10px', padding: '2px 8px', borderRadius: '8px', fontWeight: '900' }}>SAVE 20%</span>
-            )}
-          </button>
+    <div className="app-page">
+      <div className="card-glass app-surface-hero" style={{ marginBottom: '20px' }}>
+        <div className="app-surface-kicker">
+          <Crown size={14} />
+          Membership
         </div>
-      </header>
+        <h1 className="app-surface-title">Upgrade tools, protections, and visibility at your pace</h1>
+        <p className="app-surface-copy">
+          The pricing page now behaves like a product surface: calmer hierarchy, cleaner comparison cards, and the same
+          minimal dashboard language used through the rest of the app.
+        </p>
 
-      {/* Subscription Grid - Horizontal Scroll on Mobile */}
-      <div className="tier-carousel" style={{ 
-        display: 'flex', 
-        gap: '20px', 
-        overflowX: 'auto', 
-        paddingBottom: '24px',
-        scrollSnapType: 'x mandatory',
-        WebkitOverflowScrolling: 'touch'
-      }}>
-        {TIERS.map((tier, idx) => (
-          <motion.div
-            key={tier.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: idx * 0.1 }}
-            style={{
-              flex: '0 0 300px',
-              scrollSnapAlign: 'center',
-              padding: '32px',
-              borderRadius: '32px',
-              border: `1px solid ${tier.featured ? tier.color + '44' : 'rgba(255,255,255,0.05)'}`,
-              background: tier.featured ? `linear-gradient(135deg, ${tier.color}15, var(--glass-bg))` : 'var(--glass-bg)',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-              boxShadow: tier.featured ? `0 20px 40px ${tier.color}15` : 'none'
-            }}
+        <div className="app-scroll-strip" style={{ marginTop: '20px' }}>
+          <button
+            onClick={() => setBillingCycle('monthly')}
+            className={`app-option-pill${billingCycle === 'monthly' ? ' is-active' : ''}`}
           >
-            {tier.featured && (
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: tier.color, color: 'white', padding: '4px 16px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', letterSpacing: '1px' }}>MOST POPULAR</div>
-            )}
-
-            <div style={{ color: tier.color, marginBottom: '20px' }}>{tier.icon}</div>
-            <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'white', marginBottom: '4px' }}>{tier.name}</h3>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', marginBottom: '24px', fontWeight: '700' }}>{tier.description}</p>
-
-            <div style={{ marginBottom: '32px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                <span style={{ fontSize: '32px', fontWeight: '900', color: 'white' }}>₹{(tier.prices[billingCycle] || 0).toLocaleString()}</span>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontWeight: '700' }}>/{billingCycle}</span>
-              </div>
-              {billingCycle === 'yearly' && (
-                <div style={{ color: 'var(--color-success)', fontSize: '11px', fontWeight: '900', marginTop: '4px' }}>Equiv. ₹{(tier.prices.yearly / 12).toFixed(0).toLocaleString()}/mo</div>
-              )}
-            </div>
-
-            <div style={{ flex: 1, marginBottom: '40px' }}>
-              {tier.features.map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
-                  <div style={{ color: tier.color, opacity: 0.8 }}>{f.icon}</div>
-                  <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '600' }}>{f.text}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => handleSubscribe(tier.id, billingCycle)}
-              style={{
-                width: '100%',
-                height: '60px',
-                borderRadius: '18px',
-                border: 'none',
-                background: tier.featured ? tier.color : 'rgba(255,255,255,0.05)',
-                color: 'white',
-                fontWeight: '900',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: '0.3s',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}
-            >
-              {user?.subscription_tier === tier.id.toUpperCase() ? 'Current Plan' : 'Get Started'}
-            </button>
-          </motion.div>
-        ))}
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingCycle('yearly')}
+            className={`app-option-pill${billingCycle === 'yearly' ? ' is-active' : ''}`}
+          >
+            Yearly
+          </button>
+          <div className="badge badge-success" style={{ padding: '8px 14px' }}>Save 20% yearly</div>
+        </div>
       </div>
 
-      {/* Trust Footer */}
-      <footer style={{ marginTop: '40px', textAlign: 'center' }}>
-         <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', opacity: 0.3, marginBottom: '16px' }}>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg" alt="UPI" style={{ height: '16px', filter: 'brightness(0) invert(1)' }} />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" style={{ height: '12px', filter: 'brightness(0) invert(1)' }} />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" style={{ height: '18px', filter: 'brightness(0) invert(1)' }} />
-         </div>
-         <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', fontWeight: '700' }}>SSL SECURED • CANCEL ANYTIME • 24/7 SUPPORT</p>
-      </footer>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '18px',
+        }}
+      >
+        {TIERS.map((tier, index) => {
+          const Icon = tier.icon;
+          const isCurrent = user?.subscription_tier === tier.id.toUpperCase();
 
-      <style>{`
-        .tier-carousel::-webkit-scrollbar { display: none; }
-        .tier-carousel { -ms-overflow-style: none; scrollbar-width: none; }
-        @media (min-width: 1024px) {
-          .tier-carousel {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            overflow-x: visible;
-          }
-        }
-      `}</style>
+          return (
+            <motion.div
+              key={tier.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="card-glass app-data-card"
+              style={{
+                borderColor: tier.featured ? `${tier.color}44` : 'var(--glass-border)',
+                background: tier.featured
+                  ? `linear-gradient(160deg, ${tier.color}1f 0%, rgba(255,255,255,0.02) 60%, rgba(255,255,255,0.01) 100%)`
+                  : undefined,
+                position: 'relative',
+              }}
+            >
+              {tier.featured && (
+                <div
+                  className="badge badge-primary"
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    background: `${tier.color}20`,
+                    borderColor: `${tier.color}44`,
+                    color: tier.color,
+                  }}
+                >
+                  Popular
+                </div>
+              )}
+
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '18px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `${tier.color}1f`,
+                  color: tier.color,
+                }}
+              >
+                <Icon size={24} />
+              </div>
+
+              <div style={{ marginTop: '18px' }}>
+                <div className="app-list-title" style={{ fontSize: '22px' }}>{tier.name}</div>
+                <div className="app-list-subtitle" style={{ fontSize: '13px' }}>{tier.description}</div>
+              </div>
+
+              <div style={{ marginTop: '22px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontSize: '42px', fontWeight: '900', letterSpacing: '-0.08em', color: 'var(--color-text-primary)' }}>
+                    ₹{tier.prices[billingCycle].toLocaleString()}
+                  </span>
+                  <span style={{ color: 'var(--color-text-muted)', fontSize: '13px', fontWeight: '800' }}>
+                    /{billingCycle}
+                  </span>
+                </div>
+                {billingCycle === 'yearly' && (
+                  <div className="app-field-note">
+                    Equivalent to ₹{Math.round(tier.prices.yearly / 12).toLocaleString()}/month
+                  </div>
+                )}
+              </div>
+
+              <div className="app-stacked-list" style={{ marginTop: '24px', gap: '12px' }}>
+                {tier.features.map((feature) => {
+                  const FeatureIcon = feature.icon;
+                  return (
+                    <div key={feature.text} className="app-list-row" style={{ alignItems: 'center' }}>
+                      <div className="app-list-main" style={{ gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: `${tier.color}18`,
+                            color: tier.color,
+                          }}
+                        >
+                          <FeatureIcon size={15} />
+                        </div>
+                        <div className="app-list-copy">
+                          <div className="app-list-subtitle" style={{ marginTop: 0, color: 'var(--color-text-secondary)' }}>
+                            {feature.text}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => handleSubscribe(tier.id, billingCycle)}
+                className={`app-button ${isCurrent ? 'is-secondary' : 'is-primary'} is-block`}
+                style={{ marginTop: '26px', minHeight: '56px' }}
+              >
+                {isCurrent ? 'Current plan' : 'Choose plan'}
+              </button>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

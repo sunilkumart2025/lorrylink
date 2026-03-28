@@ -11,20 +11,7 @@ export default function ThemeToggle() {
       whileTap={{ scale: 0.9 }}
       whileHover={{ scale: 1.1 }}
       onClick={toggleTheme}
-      style={{
-        width: '44px',
-        height: '44px',
-        borderRadius: '14px',
-        border: '1px solid var(--border-color)',
-        background: 'var(--color-surface)',
-        color: 'var(--color-primary)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        boxShadow: 'var(--shadow-md)',
-        transition: 'all 0.3s ease'
-      }}
+      className="theme-toggle"
       aria-label="Toggle Theme"
     >
       {theme === 'dark' ? (

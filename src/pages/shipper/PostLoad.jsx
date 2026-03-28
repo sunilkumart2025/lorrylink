@@ -55,7 +55,7 @@ export default function PostLoad() {
     <div style={{ padding: 'var(--spacing-xl)', maxWidth: '900px', margin: '0 auto' }}>
       <h1 className="mb-xl">Post a New Shipment</h1>
       
-      <div className="flex gap-xl">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
         {/* Form Side */}
         <div style={{ flex: 1 }}>
           <div className="card">
@@ -110,8 +110,8 @@ export default function PostLoad() {
                 </div>
             </div>
 
-            <button className="btn btn-primary btn-block">
-               <Send size={20} style={{ marginRight: '8px' }} /> POST LOAD LIVE
+            <button onClick={handlePostLoad} disabled={loading} className="btn btn-primary btn-block">
+               <Send size={20} style={{ marginRight: '8px' }} /> {loading ? 'POSTING...' : 'POST LOAD LIVE'}
             </button>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function PostLoad() {
         {/* Preview Side */}
         <div style={{ flex: 1 }}>
            <h3 className="mb-md">How Drivers Will See This</h3>
-           <RateCard data={previewData} />
+           <RateCard data={previewData} primaryLabel="PREVIEW ONLY" />
            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
               Transparency matters. We show drivers the exact breakdown including GST.
            </div>

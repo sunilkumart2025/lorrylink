@@ -1,20 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Truck, Search, Star, Award, TrendingUp,
-  Map, Navigation, ArrowRight, Home as HomeIcon,
-  Zap, Shield, Clock, IndianRupee
+  Truck,
+  Search,
+  Star,
+  Award,
+  TrendingUp,
+  Map,
+  Navigation,
+  ArrowRight,
+  Zap,
+  Shield,
+  IndianRupee,
+  Siren,
+  ChevronRight,
+  User,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import LiveFleetMap from '../../components/maps/LiveFleetMap';
 import FuelPriceBanner from '../../components/common/FuelPriceBanner';
-import { useQuery } from '@tanstack/react-query';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
-import RecentReviews from '../../components/common/RecentReviews';
-import ThemeToggle from '../../components/common/ThemeToggle';
 import { parseWKT } from '../../utils/geo';
 
 export default function Home() {
@@ -22,36 +32,34 @@ export default function Home() {
   const navigate = useNavigate();
   const { user } = useStore();
 
-  // Sync in real-time
   useRealtimeSync('bookings', 'activeBooking', `driver_id=eq.${user?.id}`);
   useRealtimeSync('bookings', 'performance-stats', `driver_id=eq.${user?.id}`);
   useRealtimeSync('reviews', 'performance-stats');
+  useRealtimeSync('highway_alerts', 'road-alerts');
 
-  // Fetch performance stats
   const { data: stats } = useQuery({
     queryKey: ['performance-stats', user?.id],
     queryFn: async () => {
       const [bookingsRes, reviewsRes] = await Promise.all([
         supabase.from('bookings').select('*').eq('driver_id', user.id),
-        supabase.from('reviews').select('*').eq('driver_id', user.id)
+        supabase.from('reviews').select('*').eq('driver_id', user.id),
       ]);
 
-      const completed = bookingsRes.data?.filter(b => b.status === 'completed') || [];
-      const totalEarnings = completed.reduce((sum, b) => sum + (b.agreed_price || 0), 0);
+      const completed = bookingsRes.data?.filter((booking) => booking.status === 'completed') || [];
+      const totalEarnings = completed.reduce((sum, booking) => sum + (booking.agreed_price || 0), 0);
       const avgRating = reviewsRes.data?.length
-        ? reviewsRes.data.reduce((sum, r) => sum + r.rating, 0) / reviewsRes.data.length
+        ? reviewsRes.data.reduce((sum, review) => sum + review.rating, 0) / reviewsRes.data.length
         : 5.0;
 
       return {
         trips: completed.length,
         earnings: totalEarnings,
-        rating: avgRating.toFixed(1)
+        rating: avgRating.toFixed(1),
       };
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
   });
 
-  // Fetch active booking
   const { data: activeBooking } = useQuery({
     queryKey: ['activeBooking', user?.id],
     queryFn: async () => {
@@ -63,10 +71,9 @@ export default function Home() {
         .limit(1);
       return data?.[0] || null;
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
   });
 
-  // Fetch Backhaul Load (Return Trip Optimizer)
   const { data: backhaulLoad } = useQuery({
     queryKey: ['backhaulLoad', activeBooking?.shipments?.destination, user?.home_city],
     queryFn: async () => {
@@ -75,7 +82,6 @@ export default function Home() {
       const dest = activeBooking.shipments?.destination;
       const home = user.home_city;
 
-      // Find pending shipments from DESTINATION back to HOME
       const { data } = await supabase
         .from('shipments')
         .select('*')
@@ -83,11 +89,22 @@ export default function Home() {
         .ilike('origin', `%${dest}%`)
         .ilike('destination', `%${home}%`)
         .limit(1)
-        .maybeSingle(); // Better than .single() here to avoid 406
+        .maybeSingle();
 
       return data || null;
     },
-    enabled: !!user?.home_city && !!activeBooking?.shipments?.destination
+    enabled: !!user?.home_city && !!activeBooking?.shipments?.destination,
+  });
+
+  const { data: roadAlerts } = useQuery({
+    queryKey: ['active-road-alerts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('highway_alerts')
+        .select('*')
+        .gt('expires_at', new Date().toISOString());
+      return data || [];
+    },
   });
 
   const container = {
@@ -96,14 +113,14 @@ export default function Home() {
       opacity: 1,
       transition: {
         staggerChildren: 0.08,
-        delayChildren: 0.1
-      }
-    }
+        delayChildren: 0.08,
+      },
+    },
   };
 
   const item = {
-    hidden: { y: 15, opacity: 0 },
-    show: { y: 0, opacity: 1 }
+    hidden: { y: 18, opacity: 0 },
+    show: { y: 0, opacity: 1 },
   };
 
   const getCity = (address) => {
@@ -114,333 +131,459 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'var(--color-background)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--color-text-primary)'
-      }}>
+      <div
+        style={{
+          minHeight: '100dvh',
+          background: 'var(--color-background)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-primary)',
+        }}
+      >
         <div className="loader-pulse"></div>
-        <h2 style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '4px', marginTop: '24px', opacity: 0.4, textTransform: 'uppercase' }}>{t('post.matching')}</h2>
+        <h2
+          style={{
+            fontSize: '11px',
+            fontWeight: '900',
+            letterSpacing: '4px',
+            marginTop: '24px',
+            opacity: 0.4,
+            textTransform: 'uppercase',
+          }}
+        >
+          {t('post.matching')}
+        </h2>
       </div>
     );
   }
 
+  const firstName = user?.name?.split(' ')[0] || 'User';
+  const driverId = user?.id ? `#${user.id.slice(0, 5).toUpperCase()}` : '#00000';
+  const subscriptionTier = user?.subscription_tier || 'Starter';
+  const missionLabel = activeBooking?.shipments?.cargo_type || 'Freight move';
+
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      style={{ padding: '24px', maxWidth: '600px', margin: '0 auto', position: 'relative' }}
-    >
-      {/* Header Info */}
-      <motion.div variants={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-text-primary)', letterSpacing: '-0.8px' }}>
-            {t('home.namaste')}, {user.name?.split(' ')[0] || 'User'}!
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></div>
-            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>Driver ID: #{user.id.slice(0, 5).toUpperCase()}</span>
+    <>
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="page-shell home-dashboard-apple"
+      >
+        <motion.section variants={item} className="card-glass home-hero-card">
+          <div className="home-hero-main">
+            <div className="home-hero-avatar">
+              <Truck size={28} />
+            </div>
+            <div className="home-hero-copy">
+              <span className="home-hero-kicker">Driver Command Center</span>
+              <h1>{t('home.namaste')}, {firstName}</h1>
+              <p>Everything you need for the current trip, your freight network, and your next move in one focused workspace.</p>
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <ThemeToggle />
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/driver/subscription')}
-            style={{
-              background: 'var(--glass-bg)',
-              padding: '10px 16px',
-              borderRadius: '16px',
-              border: `1px solid ${user.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--glass-border)'}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              boxShadow: user.subscription_tier === 'GOLD' ? '0 0 20px rgba(245, 158, 11, 0.15)' : 'none'
-            }}
-          >
-            <Shield size={16} color={user.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--color-primary)'} />
-            <span style={{ fontSize: '13px', fontWeight: '900', color: 'white' }}>{user.subscription_tier || 'STARTER'}</span>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      <motion.div variants={item} style={{ marginBottom: '24px' }}>
-        <FuelPriceBanner />
-      </motion.div>
-
-      {/* Active Trip Widget (Priority) */}
-      <AnimatePresence mode="wait">
-        {activeBooking && (
-          <motion.div
-            variants={item}
-            exit={{ opacity: 0, scale: 0.95 }}
-            style={{
-              marginBottom: '20px',
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, var(--glass-bg) 100%)',
-              borderRadius: '28px',
-              border: '1px solid var(--color-primary)',
-              padding: '24px',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--color-primary)', letterSpacing: '1.2px', textTransform: 'uppercase' }}>{t('home.active_mission')}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(34,197,94,0.1)', padding: '5px 12px', borderRadius: '20px' }}>
-                <div className="pulse-dot green" style={{ width: '6px', height: '6px' }}></div>
-                <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--color-success)' }}>{t('home.transit')}</span>
-              </div>
+          <div className="home-hero-actions">
+            <div className="home-hero-pill success">
+              <span className="home-status-dot" />
+              System online
             </div>
-
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-text-primary)' }}>{getCity(activeBooking.shipments?.pickup_address)}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>ORIGIN</div>
-              </div>
-              <div style={{ alignSelf: 'center', color: 'var(--color-text-muted)' }}><ArrowRight size={20} /></div>
-              <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-text-primary)' }}>{getCity(activeBooking.shipments?.drop_address)}</div>
-                <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '4px', fontWeight: '800' }}>DESTINATION</div>
-              </div>
+            <div className="home-hero-pill subtle">Driver ID {driverId}</div>
+            <div className="home-hero-theme home-mobile-hide">
+              <ThemeToggle />
             </div>
+          </div>
+        </motion.section>
 
-            <button
-              onClick={() => {
-                const pCoords = parseWKT(activeBooking.shipments?.pickup_location);
-                const dCoords = parseWKT(activeBooking.shipments?.drop_location);
-                navigate('/driver/navigate', { 
-                  state: { 
-                    booking: activeBooking,
-                    pickup: pCoords ? { ...pCoords, address: activeBooking.shipments?.pickup_address } : null,
-                    drop: dCoords ? { ...dCoords, address: activeBooking.shipments?.drop_address } : null
-                  } 
-                });
-              }}
-              className="btn btn-primary btn-block"
-              style={{ height: '56px', borderRadius: '18px' }}
-            >
-              <Navigation size={18} /> {t('home.navigate')}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <motion.section variants={item} className="home-stat-strip home-stat-strip-desktop home-mobile-hide">
+          <MiniStat
+            label="Completed trips"
+            mobileLabel="Trips"
+            value={stats?.trips || '0'}
+            icon={<Award size={20} color="var(--color-warning)" />}
+          />
+          <MiniStat
+            label="Net earnings"
+            mobileLabel="Earn"
+            value={`₹${((stats?.earnings || 0) / 1000).toFixed(1)}K`}
+            icon={<IndianRupee size={20} color="var(--color-success)" />}
+          />
+          <MiniStat
+            label="Driver rating"
+            mobileLabel="Rate"
+            value={stats?.rating || '5.0'}
+            icon={<Star size={20} color="var(--color-warning)" fill="currentColor" />}
+          />
+        </motion.section>
 
-      {/* Smart Backhaul Optimizer (Pillar 4.4) */}
-      <AnimatePresence>
-        {backhaulLoad && (
-          <motion.div
-            variants={item}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            style={{ marginBottom: '24px' }}
-          >
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, var(--glass-bg) 100%)',
-              border: '1px solid var(--color-warning)',
-              borderRadius: '28px',
-              padding: '24px',
-              display: 'flex',
-              gap: '20px',
-              alignItems: 'center',
-              boxShadow: 'var(--shadow-md)'
-            }}>
-              <div style={{ width: '48px', height: '48px', background: 'rgba(249, 115, 22, 0.1)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-warning)' }}>
-                <Zap size={24} fill="currentColor" />
+        <div className="home-layout-grid">
+          <div className="home-primary-stack">
+            <AnimatePresence mode="wait">
+              {activeBooking ? (
+                <motion.div
+                  variants={item}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="glass-panel home-mission-card home-mission-shell"
+                >
+                  <div className="home-mission-head">
+                    <div className="home-mission-title">
+                      <div className="home-mission-badge-icon">
+                        <Navigation size={18} color="var(--color-primary)" />
+                      </div>
+                      <div>
+                        <span className="home-mission-kicker">{t('home.active_mission')}</span>
+                        <h2>{missionLabel}</h2>
+                      </div>
+                    </div>
+                    <div className="badge badge-success" style={{ padding: '6px 14px', fontSize: '10px' }}>
+                      {t('home.transit')}
+                    </div>
+                  </div>
+
+                  <div className="mission-route">
+                    <div className="home-route-stop">
+                      <div className="home-route-city">{getCity(activeBooking.shipments?.pickup_address)}</div>
+                      <div className="home-route-label">Origin</div>
+                    </div>
+                    <div className="route-arrow-pill">
+                      <ArrowRight size={20} color="var(--color-primary)" />
+                    </div>
+                    <div className="home-route-stop mission-endpoint-right">
+                      <div className="home-route-city">{getCity(activeBooking.shipments?.drop_address)}</div>
+                      <div className="home-route-label destination">Destination</div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const pickupCoords = parseWKT(activeBooking.shipments?.pickup_location);
+                      const dropCoords = parseWKT(activeBooking.shipments?.drop_location);
+                      navigate('/driver/navigate', {
+                        state: {
+                          booking: activeBooking,
+                          pickup: pickupCoords
+                            ? { ...pickupCoords, address: activeBooking.shipments?.pickup_address }
+                            : null,
+                          drop: dropCoords
+                            ? { ...dropCoords, address: activeBooking.shipments?.drop_address }
+                            : null,
+                        },
+                      });
+                    }}
+                    className="btn btn-primary btn-block"
+                    style={{
+                      height: '58px',
+                      borderRadius: '18px',
+                      fontSize: '16px',
+                      fontWeight: '900',
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    {t('home.navigate')}
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div variants={item} className="card-glass home-empty-state home-mission-shell">
+                  <Truck size={40} color="var(--color-text-muted)" style={{ marginBottom: '16px', opacity: 0.4 }} />
+                  <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-text-primary)' }}>Mission Standby</div>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      color: 'var(--color-text-secondary)',
+                      marginTop: '8px',
+                      maxWidth: '32rem',
+                    }}
+                  >
+                    Your truck is visible to shippers. Open the freight market to find the next best load.
+                  </div>
+                  <button
+                    onClick={() => navigate('/driver/matches')}
+                    className="btn btn-primary"
+                    style={{ marginTop: '24px', height: '50px', padding: '0 28px', borderRadius: '14px', fontSize: '14px' }}
+                  >
+                    Freight Market
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <motion.section variants={item} className="home-stat-strip home-stat-strip-mobile home-mobile-only">
+              <MiniStat
+                label="Completed trips"
+                mobileLabel="Trips"
+                value={stats?.trips || '0'}
+                icon={<Award size={18} color="var(--color-warning)" />}
+                compact
+              />
+              <MiniStat
+                label="Net earnings"
+                mobileLabel="Earn"
+                value={`₹${((stats?.earnings || 0) / 1000).toFixed(1)}K`}
+                icon={<IndianRupee size={18} color="var(--color-success)" />}
+                compact
+              />
+              <MiniStat
+                label="Driver rating"
+                mobileLabel="Rate"
+                value={stats?.rating || '5.0'}
+                icon={<Star size={18} color="var(--color-warning)" fill="currentColor" />}
+                compact
+              />
+            </motion.section>
+
+            <motion.section variants={item} className="card-glass home-actions-card home-mobile-actions home-mobile-only">
+              <div className="home-section-head">
+                <h3>Quick Actions</h3>
+                <p>Move to the next job faster</p>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '10px', fontWeight: '900', color: 'var(--color-warning)', letterSpacing: '1.2px', textTransform: 'uppercase', marginBottom: '4px' }}>{t('home.backhaul')}</div>
-                <h4 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--color-text-primary)', margin: 0 }}>{t('home.return_found')}</h4>
-                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0' }}>
-                  To <strong style={{ color: 'var(--color-text-primary)' }}>{user.home_city}</strong> • <strong style={{ color: 'var(--color-success)' }}>₹{backhaulLoad.price.toLocaleString()}</strong>
-                </p>
+              <div className="home-mobile-action-grid">
+                <ActionButton
+                  icon={<Search size={22} />}
+                  label={t('home.find_load')}
+                  onClick={() => navigate('/driver/matches')}
+                  small
+                  mobileCompact
+                  primary
+                />
+                <ActionButton
+                  icon={<Truck size={20} />}
+                  label="Post Truck"
+                  onClick={() => navigate('/driver/post-truck')}
+                  small
+                  mobileCompact
+                />
+                <ActionButton
+                  icon={<TrendingUp size={20} />}
+                  label="Analyzer"
+                  onClick={() => navigate('/driver/detour')}
+                  small
+                  mobileCompact
+                />
+              </div>
+            </motion.section>
+
+            <motion.div variants={item} className="home-fuel-section">
+              <FuelPriceBanner />
+            </motion.div>
+
+            <motion.div variants={item} className="card-glass home-map-card" style={{ overflow: 'hidden', padding: 0 }}>
+              <div className="panel-header">
+                <div className="panel-header-main">
+                  <div className="panel-icon">
+                    <Map size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-text-primary)', margin: 0 }}>
+                      {t('home.freight_network')}
+                    </h3>
+                    <span className="home-card-support">Live fleet intelligence</span>
+                  </div>
+                </div>
+                <div className="badge badge-primary" style={{ padding: '4px 12px', opacity: 0.9 }}>
+                  Live updating
+                </div>
+              </div>
+              <div className="home-map-frame">
+                <LiveFleetMap />
+              </div>
+            </motion.div>
+          </div>
+
+          <aside className="home-secondary-stack">
+            <motion.div variants={item} className="card-glass home-profile-panel">
+              <div className="home-profile-panel-head">
+                <div className="profile-avatar">
+                  <User size={22} />
+                </div>
+                <div>
+                  <span className="home-card-kicker">Driver Profile</span>
+                  <h2>{firstName}</h2>
+                  <p>Ready for dispatch and synced across your current routes.</p>
+                </div>
               </div>
               <button
-                onClick={() => navigate('/driver/matches')}
-                className="btn btn-ghost"
-                style={{ height: '44px', padding: '0 20px', borderRadius: '14px', background: 'var(--color-surface)', border: '1px solid var(--color-warning)' }}
+                onClick={() => navigate('/driver/subscription')}
+                className="subscription-card home-tier-card"
+                style={{
+                  border: `1.2px solid ${
+                    subscriptionTier?.toUpperCase() === 'GOLD' ? '#F59E0B' : 'var(--glass-border)'
+                  }`,
+                }}
               >
-                VIEW
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <Shield
+                  size={22}
+                  color={subscriptionTier?.toUpperCase() === 'GOLD' ? '#F59E0B' : 'var(--color-primary)'}
+                />
+                <div style={{ flex: 1 }}>
+                  <div className="home-card-kicker">Membership</div>
+                <div style={{ fontSize: '16px', fontWeight: '900', color: 'var(--color-text-primary)' }}>
+                  {subscriptionTier?.toUpperCase()} Tier
+                </div>
+              </div>
+              <ChevronRight size={16} color="var(--color-text-muted)" />
+            </button>
+            </motion.div>
 
-      {/* Main Map: Live Freight Network */}
-      <motion.div
-        variants={item}
-        style={{
-          background: 'var(--glass-bg)',
-          borderRadius: '32px',
-          border: '1px solid var(--glass-border)',
-          overflow: 'hidden',
-          marginBottom: '24px',
-          boxShadow: 'var(--shadow-md)'
-        }}
-      >
-        <div style={{
-          padding: '20px 24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(255,255,255,0.01)',
-          borderBottom: '1px solid var(--glass-border)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ padding: '10px', background: 'rgba(59,130,246,0.1)', borderRadius: '14px', color: 'var(--color-primary)' }}>
-              <Map size={20} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '900', color: 'var(--color-text-primary)', margin: 0 }}>{t('home.freight_network')}</h3>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Real-time Fleet Status</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.5 }}>
-            <Clock size={12} />
-            <span style={{ fontSize: '10px', fontWeight: '900' }}>LIVE NOW</span>
-          </div>
-        </div>
-        <div style={{ height: '360px', position: 'relative' }}>
-          <LiveFleetMap />
-        </div>
-      </motion.div>
+            <motion.div variants={item} className="card-glass home-actions-card home-mobile-hide">
+              <div className="home-section-head">
+                <h3>Quick Actions</h3>
+                <p>Core tools for the next move</p>
+              </div>
+              <div className="action-grid">
+                <ActionButton
+                  icon={<Search size={26} />}
+                  label={t('home.find_load')}
+                  onClick={() => navigate('/driver/matches')}
+                  primary
+                />
+                <div className="action-grid-split">
+                  <ActionButton
+                    icon={<Truck size={22} />}
+                    label="Post Truck"
+                    onClick={() => navigate('/driver/post-truck')}
+                    small
+                  />
+                  <ActionButton
+                    icon={<TrendingUp size={22} />}
+                    label="Analyzer"
+                    onClick={() => navigate('/driver/detour')}
+                    small
+                  />
+                </div>
+              </div>
+            </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div variants={item} style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-        <ActionButton
-          icon={<Zap size={28} />}
-          label={t('home.find_load')}
-          onClick={() => navigate('/driver/matches')}
-          primary
-        />
-        <ActionButton
-          icon={<Truck size={28} />}
-          label={t('home.post_empty')}
-          onClick={() => navigate('/driver/post-truck')}
-        />
-      </motion.div>
+            <AnimatePresence>
+              {roadAlerts?.length > 0 && (
+                <motion.div variants={item} className="alert-card home-note-card" whileHover={{ scale: 1.01 }}>
+                  <div className="alert-icon-wrap">
+                    <Siren size={24} color="#EF4444" className="animate-pulse" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: 'var(--color-text-primary)', fontWeight: '900', fontSize: '16px' }}>Highway Intel</div>
+                    <div style={{ color: 'var(--color-error)', fontSize: '12px', fontWeight: '800' }}>
+                      {roadAlerts.length} active incidents
+                    </div>
+                  </div>
+                  <ChevronRight size={18} color="#EF4444" />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-      {/* Detour Shortcut */}
-      <motion.div
-        variants={item}
-        whileHover={{ x: 4, background: 'rgba(255,255,255,0.05)' }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => navigate('/driver/detour')}
-        style={{
-          marginBottom: '32px',
-          background: 'var(--glass-bg)',
-          borderRadius: '24px',
-          border: '1px solid var(--glass-border)',
-          padding: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '20px',
-          cursor: 'pointer',
-          boxShadow: 'var(--shadow-md)',
-          transition: 'background 0.3s'
-        }}
-      >
-        <div style={{ background: 'rgba(34,211,238,0.1)', padding: '14px', borderRadius: '16px', color: 'var(--color-accent)' }}>
-          <TrendingUp size={24} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <h4 style={{ margin: 0, fontSize: '16px', color: 'var(--color-text-primary)', fontWeight: '800' }}>Net Profit Calculator</h4>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Estimate true earnings after diesel & tolls</p>
-        </div>
-        <ArrowRight size={20} color="var(--color-text-muted)" />
-      </motion.div>
-
-      <motion.div variants={item}>
-        <RecentReviews />
-      </motion.div>
-
-      {/* Analytics Summary */}
-      <motion.div variants={item}>
-        <h3 style={{ fontSize: '11px', fontWeight: '900', color: 'var(--color-text-muted)', letterSpacing: '2px', marginBottom: '16px', marginTop: '40px', textTransform: 'uppercase' }}>{t('home.performance')}</h3>
-        <div style={{ display: 'flex', gap: '12px', paddingBottom: '60px' }}>
-          <MiniStat label={t('home.trips')} value={stats?.trips || '0'} icon={<Award size={18} color="var(--color-warning)" />} />
-          <MiniStat label={t('home.profit')} value={`₹${((stats?.earnings || 0) / 1000).toFixed(1)}K`} icon={<IndianRupee size={18} color="var(--color-success)" />} />
-          <MiniStat label={t('home.score')} value={stats?.rating || '5.0'} icon={<Star size={18} color="var(--color-warning)" fill="currentColor" />} />
+            <AnimatePresence>
+              {backhaulLoad && (
+                <motion.div variants={item} className="card-glass backhaul-card home-note-card">
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ padding: '8px', background: 'rgba(245, 158, 11, 0.15)', borderRadius: '10px' }}>
+                      <Zap size={22} color="var(--color-warning)" fill="currentColor" />
+                    </div>
+                    <h4 style={{ fontSize: '16px', fontWeight: '950', color: 'var(--color-text-primary)', margin: 0 }}>
+                      Smart Return Trip
+                    </h4>
+                  </div>
+                  <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: '1.6' }}>
+                    We found a high-paying shipment from your current destination back to{' '}
+                    <strong style={{ color: 'var(--color-text-primary)' }}>{user?.home_city || 'Home'}</strong>.
+                  </p>
+                  <div className="backhaul-profit">
+                    <span style={{ fontSize: '20px', fontWeight: '950', color: 'var(--color-success)' }}>
+                      ₹{backhaulLoad.price.toLocaleString()}
+                    </span>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: '800' }}>Estimated profit</div>
+                  </div>
+                  <button
+                    onClick={() => navigate('/driver/matches')}
+                    className="btn btn-primary"
+                    style={{ height: '48px', borderRadius: '14px', background: 'var(--color-warning)', color: 'black' }}
+                  >
+                    Accept Return Load
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </aside>
         </div>
       </motion.div>
 
       <style>{`
         .loader-pulse {
-          width: 48px; height: 48px; border-radius: 50%;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
           background: var(--color-primary);
           box-shadow: 0 0 0 rgba(59, 130, 246, 0.4);
           animation: anchor-pulse 2s infinite;
         }
+
         @keyframes anchor-pulse {
           0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
           70% { box-shadow: 0 0 0 24px rgba(59, 130, 246, 0); }
           100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
-        .pulse-dot.green { background: var(--color-success); animation: dot-pulse 2s infinite; }
+
+        .home-status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--color-success);
+          box-shadow: 0 0 0 rgba(34, 197, 94, 0.4);
+          animation: dot-pulse 2s infinite;
+        }
+
         @keyframes dot-pulse {
           0% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.6); }
+          50% { opacity: 0.55; transform: scale(1.4); }
           100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
-    </motion.div>
+    </>
   );
 }
 
-function ActionButton({ icon, label, onClick, primary }) {
+function ActionButton({ icon, label, onClick, primary, small, mobileCompact }) {
   return (
     <motion.button
-      whileTap={{ scale: 0.95 }}
-      whileHover={{ y: -4, boxShadow: primary ? '0 15px 30px rgba(37, 99, 235, 0.3)' : 'var(--shadow-md)' }}
+      whileTap={{ scale: 0.97 }}
+      whileHover={{ y: -4, boxShadow: primary ? '0 24px 44px rgba(37, 99, 235, 0.26)' : 'var(--shadow-lg)' }}
       onClick={onClick}
+      className={`dashboard-action${primary ? ' is-primary' : ''}${small ? ' is-small' : ''}${mobileCompact ? ' is-mobile-compact' : ''}`}
       style={{
-        flex: 1,
-        height: '140px',
+        height: small ? '108px' : '170px',
         background: primary
-          ? 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)'
-          : 'var(--glass-bg)',
-        borderRadius: '28px',
-        border: primary ? 'none' : '1px solid var(--glass-border)',
+          ? 'linear-gradient(145deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)'
+          : 'var(--color-surface)',
         color: primary ? 'white' : 'var(--color-text-primary)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px',
-        cursor: 'pointer',
-        boxShadow: primary ? '0 12px 24px rgba(37, 99, 235, 0.25)' : 'none',
-        transition: 'all 0.3s ease'
+        boxShadow: primary ? 'var(--shadow-primary)' : 'none',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <div style={{ color: primary ? 'white' : 'var(--color-primary)' }}>{icon}</div>
-      <span style={{ fontSize: '13px', fontWeight: '900', letterSpacing: '1.2px', textTransform: 'uppercase' }}>{label}</span>
+      <div style={{ color: primary ? 'white' : 'var(--color-primary)', transform: small ? 'scale(0.95)' : 'scale(1.1)' }}>
+        {icon}
+      </div>
+      <span
+        style={{
+          fontSize: small ? '12px' : '15px',
+          fontWeight: '800',
+          letterSpacing: small ? '0.02em' : '0.01em',
+        }}
+      >
+        {label}
+      </span>
     </motion.button>
   );
 }
 
-function MiniStat({ label, value, icon }) {
+function MiniStat({ label, mobileLabel, value, icon, compact }) {
   return (
-    <div style={{
-      flex: 1,
-      background: 'var(--glass-bg)',
-      borderRadius: '24px',
-      border: '1px solid var(--glass-border)',
-      padding: '24px 12px',
-      textAlign: 'center',
-      boxShadow: 'var(--shadow-md)'
-    }}>
-      <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'center' }}>{icon}</div>
-      <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--color-text-primary)', letterSpacing: '-0.8px' }}>{value}</div>
-      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: '900', marginTop: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>{label}</div>
+    <div className={`card-glass home-mini-stat${compact ? ' is-compact' : ''}`} style={{ borderWidth: '1.5px' }}>
+      <div className="home-mini-stat-icon">{icon}</div>
+      <div className="home-mini-stat-content">
+        <div className="home-mini-stat-label">
+          <span className="home-stat-label-desktop">{label}</span>
+          <span className="home-stat-label-mobile">{mobileLabel || label}</span>
+        </div>
+        <div className="home-mini-stat-value">{value}</div>
+      </div>
     </div>
   );
 }

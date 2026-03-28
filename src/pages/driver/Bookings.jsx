@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Truck, CheckCircle, Clock, Star, MapPin, Navigation, ShieldCheck, ArrowRight, IndianRupee, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
 import RatingModal from '../../components/common/RatingModal';
@@ -15,6 +15,7 @@ import { parseWKT } from '../../utils/geo';
 export default function Bookings() {
   const { user } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
@@ -25,13 +26,31 @@ export default function Bookings() {
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [filter, setFilter] = useState('active'); // 'active' | 'history'
+  
+  // Guard against null user during session init
+  if (!user || user.id === null) {
+    return (
+      <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="loader-pulse"></div>
+        <p style={{ marginTop: '16px', fontSize: '11px', fontWeight: '900', letterSpacing: '2px', color: 'rgba(255,255,255,0.3)' }}>SYNCING SHIPMENTS...</p>
+      </div>
+    );
+  }
 
   // Sync real-time updates
   useRealtimeSync('bookings', 'bookings', `driver_id=eq.${user?.id}`);
 
+  useEffect(() => {
+    if (location.state?.finishingBooking) {
+      setFilter('active');
+      setFinishingBooking(location.state.finishingBooking);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
   // Fetch all bookings
   const { data: bookings, isLoading } = useQuery({
-    queryKey: ['bookings', user.id],
+    queryKey: ['bookings', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
@@ -39,11 +58,12 @@ export default function Bookings() {
           *,
           shipments (*)
         `)
-        .eq('driver_id', user.id)
+        .eq('driver_id', user?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!user?.id
   });
 
   const filteredBookings = bookings?.filter(b => {
@@ -100,28 +120,21 @@ export default function Bookings() {
   };
 
   return (
-    <div style={{ padding: '24px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '32px' }}>
-        <h1 style={{ color: 'var(--color-primary)', fontSize: '28px', fontWeight: '900', letterSpacing: '-1px' }}>MY BOOKINGS</h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '15px' }}>Track your active and historical loads.</p>
+    <div className="app-page app-page-narrow">
+      <header className="app-page-header">
+        <div className="app-title-wrap">
+          <h1 className="app-page-title">My Bookings</h1>
+          <p className="app-page-subtitle">Track active trips, delivery progress, and completed loads in one place.</p>
+        </div>
       </header>
 
       {/* Filter Tabs */}
-      <div style={{ 
-        display: 'flex', background: 'rgba(255,255,255,0.03)', 
-        padding: '5px', borderRadius: '16px', marginBottom: '24px',
-        border: '1px solid rgba(255,255,255,0.05)'
-      }}>
+      <div className="app-segmented" style={{ marginBottom: '24px' }}>
         {['active', 'history'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            style={{
-              flex: 1, padding: '10px', borderRadius: '12px', border: 'none',
-              background: filter === f ? 'var(--color-primary)' : 'transparent',
-              color: 'white', fontWeight: '900', fontSize: '12px', textTransform: 'uppercase',
-              letterSpacing: '1px', transition: 'all 0.3s ease'
-            }}
+            className={`app-segment${filter === f ? ' is-active' : ''}`}
           >
             {f}
           </button>
@@ -135,11 +148,11 @@ export default function Bookings() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {filteredBookings?.length === 0 ? (
-            <div className="card-glass" style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(255,255,255,0.02)' }}>
+            <div className="card-glass app-empty-card">
               <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }}>
-                <Truck size={64} color="rgba(255,255,255,0.05)" style={{ margin: '0 auto 20px' }} />
-                <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'white' }}>No {filter} bookings</h3>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px' }}>Ready for your next journey?</p>
+                <Truck size={64} color="var(--color-text-muted)" style={{ margin: '0 auto 20px', opacity: 0.15 }} />
+                <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-text-primary)' }}>No {filter} bookings</h3>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>Ready for your next journey?</p>
               </motion.div>
             </div>
           ) : (
@@ -152,7 +165,7 @@ export default function Bookings() {
                 className="card-glass"
                 style={{ 
                   padding: '24px', 
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'var(--glass-bg)',
                   border: booking.status === 'in_progress' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255,255,255,0.05)'
                 }}
               >
@@ -171,8 +184,8 @@ export default function Bookings() {
                       {booking.status === 'completed' ? <CheckCircle size={22} /> : <Truck size={22} />}
                     </div>
                     <div>
-                      <div style={{ fontSize: '11px', fontWeight: '900', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px' }}>ID: {booking.id.slice(0, 8).toUpperCase()}</div>
-                      <div style={{ fontSize: '20px', fontWeight: '900', color: 'white' }}>₹{(booking.agreed_price || 0).toLocaleString()}</div>
+                      <div style={{ fontSize: '11px', fontWeight: '900', color: 'var(--color-text-muted)', letterSpacing: '1px' }}>ID: {booking.id.slice(0, 8).toUpperCase()}</div>
+                      <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--color-text-primary)' }}>₹{(booking.agreed_price || 0).toLocaleString()}</div>
                     </div>
                   </div>
                   <StatusBadge status={booking.status} />
@@ -185,17 +198,17 @@ export default function Bookings() {
                   <div style={{ marginBottom: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                       <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', border: '2px solid rgba(0,0,0,0.5)' }}></div>
-                      <span style={{ fontSize: '14px', fontWeight: '800', color: 'white' }}>{getCity(booking.shipments?.pickup_address)}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--color-text-primary)' }}>{getCity(booking.shipments?.pickup_address)}</span>
                     </div>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0, paddingLeft: '20px' }}>{booking.shipments?.pickup_address}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0, paddingLeft: '20px' }}>{booking.shipments?.pickup_address}</p>
                   </div>
 
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                       <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-danger)', border: '2px solid rgba(0,0,0,0.5)' }}></div>
-                      <span style={{ fontSize: '14px', fontWeight: '800', color: 'white' }}>{getCity(booking.shipments?.drop_address)}</span>
+                      <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--color-text-primary)' }}>{getCity(booking.shipments?.drop_address)}</span>
                     </div>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0, paddingLeft: '20px' }}>{booking.shipments?.drop_address}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0, paddingLeft: '20px' }}>{booking.shipments?.drop_address}</p>
                   </div>
                 </div>
 
@@ -215,7 +228,7 @@ export default function Bookings() {
                             }
                           });
                         }}
-                        style={{ flex: 1, height: '48px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '14px', color: 'var(--color-primary)', fontWeight: '900', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        style={{ flex: 1, height: '48px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '14px', color: 'var(--color-primary)', fontWeight: '900', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
                         <Navigation size={18} /> NAVIGATE
                       </button>
@@ -231,7 +244,7 @@ export default function Bookings() {
                   {booking.status === 'completed' && (
                     <button 
                       onClick={() => handleRateClick(booking)}
-                      style={{ height: '44px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        style={{ height: '44px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', color: 'var(--color-text-primary)', fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     >
                       <Star size={16} fill="var(--color-warning)" color="var(--color-warning)" />
                       RATE TRIP
@@ -247,26 +260,20 @@ export default function Bookings() {
       {/* OTP MODAL OVERLAY */}
       <AnimatePresence>
         {finishingBooking && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}>
+          <div className="app-sheet-overlay">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => !isSuccess && setFinishingBooking(null)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }} 
+              className="app-sheet-backdrop"
             />
             
             <motion.div
               layout
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              style={{ 
-                position: 'relative', width: '100%', 
-                background: 'var(--color-background)', 
-                borderTopLeftRadius: '32px', borderTopRightRadius: '32px',
-                padding: '32px 24px 48px', borderTop: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 -20px 40px rgba(0,0,0,0.5)'
-              }}
+              className="app-sheet"
             >
-              <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', margin: '0 auto 24px' }} />
+              <div className="app-sheet-handle" />
               
               {!isSuccess ? (
                 <>
@@ -274,8 +281,8 @@ export default function Bookings() {
                     <div style={{ width: '64px', height: '64px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22C55E', margin: '0 auto 16px' }}>
                       <ShieldCheck size={32} />
                     </div>
-                    <h3 style={{ fontSize: '22px', fontWeight: '900', color: 'white', margin: '0 0 8px' }}>Security Verification</h3>
-                    <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>Enter the 4-digit OTP provided by the receiver at <strong>{finishingBooking.shipments?.destination}</strong></p>
+                    <h3 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--color-text-primary)', margin: '0 0 8px' }}>Security Verification</h3>
+                    <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', margin: 0 }}>Enter the 4-digit OTP provided by the receiver at <strong>{finishingBooking.shipments?.destination}</strong></p>
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '24px' }}>
@@ -291,9 +298,9 @@ export default function Bookings() {
                           }
                         }}
                         style={{ 
-                          width: '56px', height: '64px', background: 'rgba(255,255,255,0.05)', 
-                          border: '2px solid rgba(255,255,255,0.1)', borderRadius: '16px',
-                          textAlign: 'center', fontSize: '24px', fontWeight: '900', color: 'white'
+                          width: '56px', height: '64px', background: 'rgba(255,255,255,0.04)', 
+                          border: '2px solid rgba(255,255,255,0.08)', borderRadius: '16px',
+                          textAlign: 'center', fontSize: '24px', fontWeight: '900', color: 'var(--color-text-primary)'
                         }}
                       />
                     ))}
@@ -323,11 +330,11 @@ export default function Bookings() {
                   >
                     <CheckCircle size={48} />
                   </motion.div>
-                  <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'white', margin: '0 0 8px' }}>Delivery Success!</h3>
-                  <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', marginBottom: '32px' }}>Trip closed successfully. Money added to your wallet.</p>
+                  <h3 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-text-primary)', margin: '0 0 8px' }}>Delivery Success!</h3>
+                  <p style={{ fontSize: '15px', color: 'var(--color-text-muted)', marginBottom: '32px' }}>Trip closed successfully. Money added to your wallet.</p>
                   
                   <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '20px', padding: '24px', marginBottom: '32px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontWeight: '800', letterSpacing: '1px', marginBottom: '8px' }}>EARNINGS ADDED</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: '800', letterSpacing: '1px', marginBottom: '8px' }}>EARNINGS ADDED</div>
                     <div style={{ fontSize: '32px', fontWeight: '900', color: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                       <IndianRupee size={28} /> {finishingBooking.agreed_price.toLocaleString()}
                     </div>
@@ -340,7 +347,7 @@ export default function Bookings() {
                       setOtp(['', '', '', '']);
                       setError('');
                     }}
-                    style={{ width: '100%', height: '56px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '18px', color: 'white', fontWeight: '900', fontSize: '16px' }}
+                    style={{ width: '100%', height: '56px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '18px', color: 'var(--color-text-primary)', fontWeight: '900', fontSize: '16px' }}
                   >
                     BACK TO DASHBOARD
                   </button>

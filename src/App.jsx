@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStore } from './store/useStore';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
 import LanguageSelector from './pages/driver/LanguageSelector';
 import Login from './pages/driver/Login';
@@ -22,6 +22,7 @@ import DetourCalculator from './pages/driver/DetourCalculator';
 import ChatWidget from './chatbot/ChatWidget';
 import LiveNavigation from './pages/driver/LiveNavigation';
 import { usePushNotifications } from './hooks/usePushNotifications';
+import { useLocationBroadcast } from './hooks/useLocationBroadcast';
 import Vault from './pages/driver/Vault';
 
 
@@ -29,16 +30,10 @@ import { useAuth } from './hooks/useAuth';
 
 function App() {
   const { i18n } = useTranslation();
-  const { language, theme, user } = useStore();
-  const location = useLocation();
-
-  // Condition for ChatWidget Visibility (Pillar 5.0)
-  // Hide on Landing (/), Language (/driver/lang), and Login (/driver/login)
-  const isExcludedPath = ['/', '/driver/lang', '/driver/login'].includes(location.pathname);
-  const showChat = user && !isExcludedPath;
-  
+  const { language, theme } = useStore();
   // Initialize Global Auth & Session Sync
   useAuth();
+  useLocationBroadcast();
   
   // Initialize Push Notifications listener globally
   usePushNotifications();
@@ -49,8 +44,21 @@ function App() {
     }
   }, [language, i18n]);
 
-  return (
-    <div className={theme === 'light' ? 'light-theme' : ''} style={{ minHeight: '100vh', transition: 'background-color 0.3s ease' }}>
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const currentTheme = theme || 'dark';
+    
+    root.setAttribute('data-theme', currentTheme);
+    if (currentTheme === 'light') {
+      body.classList.add('light-theme');
+    } else {
+      body.classList.remove('light-theme');
+    }
+  }, [theme]);
+
+  return  (
+    <div className="app-shell">
       <Routes>
         <Route path="/" element={<Landing />} />
         {/* Driver Interface */}

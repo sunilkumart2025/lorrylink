@@ -20,20 +20,7 @@ export default function LanguageSwitcher() {
   return (
     <button 
       onClick={toggleLanguage}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        color: 'white',
-        border: '1px solid rgba(255,255,255,0.3)',
-        borderRadius: '20px',
-        padding: '4px 10px',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        cursor: 'pointer',
-        textTransform: 'uppercase'
-      }}
+      className="ui-chip-button"
     >
       <Globe size={14} />
       {i18n.language}

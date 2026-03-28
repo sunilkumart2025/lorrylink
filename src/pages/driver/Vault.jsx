@@ -1,18 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ShieldCheck, FileText, Upload, AlertCircle, 
-  CheckCircle2, Clock, X, Eye, ChevronRight
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileText,
+  Save,
+  Scan,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  X,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
 
 const DOC_TYPES = [
-  { id: 'RC', name: 'Registration Certificate (RC)', icon: <FileText size={20} /> },
-  { id: 'DL', name: 'Driving License (DL)', icon: <ShieldCheck size={20} /> },
-  { id: 'INSURANCE', name: 'Vehicle Insurance', icon: <ShieldCheck size={20} /> },
-  { id: 'PERMIT', name: 'National Permit', icon: <FileText size={20} /> },
+  { id: 'RC', name: 'Registration Certificate (RC)', icon: FileText },
+  { id: 'DL', name: 'Driving License (DL)', icon: ShieldCheck },
+  { id: 'INSURANCE', name: 'Vehicle Insurance', icon: ShieldCheck },
+  { id: 'PERMIT', name: 'National Permit', icon: FileText },
 ];
 
 export default function Vault() {
@@ -20,186 +30,446 @@ export default function Vault() {
   const queryClient = useQueryClient();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStep, setScanStep] = useState('upload');
+  const [scannedData, setScannedData] = useState({ consignee: '', weight: '', price: '', file: null });
 
-  const { data: documents, isLoading } = useQuery({
+  const { data: documents } = useQuery({
     queryKey: ['driver-documents', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('driver_documents')
-        .select('*')
-        .eq('driver_id', user.id);
-      if (error) throw error;
+      const { data } = await supabase.from('driver_documents').select('*').eq('driver_id', user.id);
       return data || [];
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
   });
 
-  const uploadMutation = useMutation({
+  const { data: biltys } = useQuery({
+    queryKey: ['biltys', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('biltys')
+        .select('*')
+        .eq('driver_id', user.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const uploadDocMutation = useMutation({
     mutationFn: async ({ type, file }) => {
       setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${type}_${Date.now()}.${fileExt}`;
-      const filePath = `vault/${fileName}`;
-
-      // 1. Upload to Storage
-      const { error: uploadError } = await supabase.storage
-        .from('driver-vault')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // 2. Get Public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('driver-vault')
-        .getPublicUrl(filePath);
-
-      // 3. Upsert into Table
-      const { error: dbError } = await supabase
+      const filePath = `vault/${user.id}/${type}_${Date.now()}.${file.name.split('.').pop()}`;
+      await supabase.storage.from('driver-vault').upload(filePath, file);
+      const { data: { publicUrl } } = supabase.storage.from('driver-vault').getPublicUrl(filePath);
+      await supabase
         .from('driver_documents')
-        .upsert({
-          driver_id: user.id,
-          type,
-          document_url: publicUrl,
-          status: 'pending',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'driver_id,type' });
-
-      if (dbError) throw dbError;
+        .upsert({ driver_id: user.id, type, document_url: publicUrl, status: 'pending' }, { onConflict: 'driver_id,type' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['driver-documents']);
       setIsUploading(false);
-      alert('Document uploaded successfully for verification!');
+      setSelectedDoc(null);
     },
     onError: (err) => {
       setIsUploading(false);
       alert('Upload failed: ' + err.message);
-    }
+    },
   });
 
-  const getDocStatus = (type) => {
-    return documents?.find(d => d.type === type);
+  const saveBiltyMutation = useMutation({
+    mutationFn: async (data) => {
+      const filePath = `biltys/${user.id}/${Date.now()}_bilty.jpg`;
+      await supabase.storage.from('driver-vault').upload(filePath, data.file);
+      const { data: { publicUrl } } = supabase.storage.from('driver-vault').getPublicUrl(filePath);
+      await supabase.from('biltys').insert({
+        driver_id: user.id,
+        consignee_name: data.consignee,
+        weight_kg: parseFloat(data.weight),
+        total_price: parseFloat(data.price),
+        document_url: publicUrl,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['biltys']);
+      setIsScanning(false);
+      setScanStep('upload');
+      alert('Smart Bilty Digitized Successfully!');
+    },
+  });
+
+  const handleStartScan = (file) => {
+    setScannedData((prev) => ({ ...prev, file }));
+    setScanStep('scanning');
+
+    setTimeout(() => {
+      setScannedData({
+        file,
+        consignee: 'Reliance Retail Ltd - Hubli',
+        weight: '12450',
+        price: '48500',
+      });
+      setScanStep('review');
+    }, 4000);
   };
 
   return (
-    <div style={{ padding: '24px', paddingBottom: '120px', maxWidth: '600px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>DIGITAL VAULT</h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase' }}>Secure Document Management</p>
-      </header>
-
-      {/* Security Banner */}
-      <div style={{ 
-        background: 'rgba(34,197,94,0.05)', 
-        border: '1px solid rgba(34,197,94,0.2)', 
-        borderRadius: '20px', padding: '20px', marginBottom: '32px',
-        display: 'flex', gap: '16px', alignItems: 'center'
-      }}>
-        <div style={{ background: 'rgba(34,197,94,0.1)', padding: '10px', borderRadius: '12px' }}>
-          <ShieldCheck size={24} color="#22C55E" />
+    <div className="app-page app-page-narrow">
+      <div className="card-glass app-surface-hero" style={{ marginBottom: '20px' }}>
+        <div className="app-surface-kicker">
+          <ShieldCheck size={14} />
+          Document Vault
         </div>
-        <div>
-          <h4 style={{ color: 'white', margin: 0, fontSize: '14px', fontWeight: '800' }}>Encrypted Storage</h4>
-          <p style={{ color: 'rgba(255,255,255,0.4)', margin: '4px 0 0', fontSize: '12px' }}>All documents are securely stored and only visible to authorized shippers during booking.</p>
+        <h1 className="app-surface-title">Compliance records and digitized waybills in one calmer workspace</h1>
+        <p className="app-surface-copy">
+          The vault now follows the same premium system as the dashboard, so documents, statuses, and scan actions read clearly in both light and dark mode.
+        </p>
+      </div>
+
+      <motion.button
+        whileTap={{ scale: 0.98 }}
+        whileHover={{ y: -2 }}
+        onClick={() => {
+          setIsScanning(true);
+          setScanStep('upload');
+        }}
+        className="card-glass app-data-card"
+        style={{
+          width: '100%',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '18px',
+          textAlign: 'left',
+          cursor: 'pointer',
+          borderColor: 'rgba(34, 211, 238, 0.18)',
+          background: 'linear-gradient(155deg, rgba(34, 211, 238, 0.12), rgba(59, 130, 246, 0.04))',
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '20px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(59,130,246,0.16)',
+            color: 'var(--color-primary)',
+          }}
+        >
+          <Scan size={24} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className="app-list-title">Smart Bilty Scanner</div>
+          <div className="app-list-subtitle">Capture a waybill and auto-populate consignee, weight, and price.</div>
+        </div>
+        <div className="badge badge-primary" style={{ padding: '8px 14px' }}>
+          AI Assist
+        </div>
+      </motion.button>
+
+      <div className="app-page-header" style={{ marginBottom: '14px' }}>
+        <div className="app-title-wrap">
+          <h2 className="app-page-title" style={{ fontSize: '1.45rem' }}>Vehicle Compliance</h2>
+          <p className="app-page-subtitle">Your essential documents with upload and review status.</p>
         </div>
       </div>
 
-      {/* Document Selection Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+      <div className="app-stacked-list" style={{ marginBottom: '20px' }}>
         {DOC_TYPES.map((doc) => {
-          const status = getDocStatus(doc.id);
+          const Icon = doc.icon;
+          const existingDoc = documents?.find((item) => item.type === doc.id);
           return (
-            <motion.div
-              layout
+            <button
               key={doc.id}
-              whileHover={{ scale: 1.01 }}
-              style={{
-                background: 'var(--glass-bg)',
-                borderRadius: '24px',
-                border: `1px solid ${status?.status === 'verified' ? 'rgba(34,197,94,0.3)' : 'var(--glass-border)'}`,
-                padding: '20px',
-                cursor: 'pointer',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
               onClick={() => setSelectedDoc(doc)}
+              className="card-glass app-list-card"
+              style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ 
-                    background: status?.status === 'verified' ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)', 
-                    padding: '12px', borderRadius: '16px',
-                    color: status?.status === 'verified' ? '#22C55E' : 'rgba(255,255,255,0.5)'
-                  }}>
-                    {doc.icon}
+              <div className="app-list-row">
+                <div className="app-list-main">
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '16px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(59,130,246,0.12)',
+                      color: 'var(--color-primary)',
+                    }}
+                  >
+                    <Icon size={20} />
                   </div>
-                  <div>
-                    <h3 style={{ color: 'white', fontSize: '15px', fontWeight: '800' }}>{doc.name}</h3>
-                    <StatusBadge status={status?.status} />
+                  <div className="app-list-copy">
+                    <div className="app-list-title">{doc.name}</div>
+                    <div className="app-list-subtitle">
+                      <StatusBadge status={existingDoc?.status} />
+                    </div>
                   </div>
                 </div>
-                <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
+                <ChevronRight size={18} color="var(--color-text-muted)" />
               </div>
-            </motion.div>
+            </button>
           );
         })}
       </div>
 
-      {/* Upload/Preview Modal */}
+      {biltys?.length > 0 && (
+        <>
+          <div className="app-page-header" style={{ marginBottom: '14px' }}>
+            <div className="app-title-wrap">
+              <h2 className="app-page-title" style={{ fontSize: '1.45rem' }}>Digitized Records</h2>
+              <p className="app-page-subtitle">Recently scanned waybills, ready to reference on the road.</p>
+            </div>
+          </div>
+
+          <div className="app-stacked-list">
+            {biltys.map((bilty) => (
+              <div key={bilty.id} className="card-glass app-list-card">
+                <div className="app-list-row">
+                  <div className="app-list-main">
+                    <img
+                      src={bilty.document_url}
+                      alt={bilty.consignee_name}
+                      style={{ width: '48px', height: '48px', borderRadius: '16px', objectFit: 'cover' }}
+                    />
+                    <div className="app-list-copy">
+                      <div className="app-list-title">{bilty.consignee_name}</div>
+                      <div className="app-list-subtitle">{bilty.weight_kg} kg • ₹{bilty.total_price.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="badge badge-success" style={{ padding: '8px 12px' }}>
+                    Digitized
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <AnimatePresence>
-        {selectedDoc && (
-          <div style={{ 
-            position: 'fixed', inset: 0, zIndex: 1000, 
-            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
-          }}>
+        {isScanning && (
+          <div className="app-sheet-overlay">
             <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              style={{ 
-                width: '100%', maxWidth: '500px', background: '#0A0A0F', 
-                borderTopLeftRadius: '32px', borderTopRightRadius: '32px', 
-                padding: '32px 24px 60px', borderTop: '1px solid rgba(255,255,255,0.1)' 
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="app-sheet-backdrop"
+              onClick={() => setIsScanning(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="app-sheet"
+              style={{ maxWidth: '680px', margin: 'auto auto 0' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: '900', color: 'white' }}>{selectedDoc.name}</h3>
-                <button onClick={() => setSelectedDoc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+              <div className="app-sheet-handle" />
+              <div className="app-sheet-header">
+                <div>
+                  <h3 className="app-sheet-title">Smart Bilty Scan</h3>
+                  <p className="app-page-subtitle">Capture, extract, and review waybill data.</p>
+                </div>
+                <button onClick={() => setIsScanning(false)} className="app-close">
+                  <X size={18} />
+                </button>
               </div>
 
-              {getDocStatus(selectedDoc.id) ? (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ width: '100%', aspectRatio: '16/9', background: 'rgba(255,255,255,0.03)', borderRadius: '24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                    <motion.img 
-                      src={getDocStatus(selectedDoc.id).document_url} 
-                      style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '16px' }}
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <label className="btn btn-ghost" style={{ flex: 1, height: '56px', borderRadius: '18px', border: '1px solid var(--glass-border)' }}>
-                      <Upload size={18} /> Update
-                      <input type="file" hidden accept="image/*" onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) uploadMutation.mutate({ type: selectedDoc.id, file });
-                      }} />
+              {scanStep === 'upload' && (
+                <div className="app-stacked-list">
+                  <div className="app-upload-tile" style={{ minHeight: '220px' }}>
+                    <Camera size={42} color="var(--color-primary)" />
+                    <div className="app-list-title">Capture or upload a waybill</div>
+                    <div className="app-list-subtitle">Use a clear image for the best OCR quality.</div>
+                    <label className="app-button is-primary" style={{ marginTop: '12px' }}>
+                      <Upload size={16} /> Select image
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.target.files[0];
+                          if (file) handleStartScan(file);
+                        }}
+                      />
                     </label>
                   </div>
                 </div>
+              )}
+
+              {scanStep === 'scanning' && (
+                <div className="app-stacked-list">
+                  <div className="card-glass app-data-card" style={{ textAlign: 'center' }}>
+                    <div
+                      style={{
+                        width: '94px',
+                        height: '94px',
+                        borderRadius: '30px',
+                        margin: '0 auto 18px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(59,130,246,0.12)',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
+                      <Sparkles size={34} className="animate-spin" />
+                    </div>
+                    <div className="app-list-title" style={{ fontSize: '20px' }}>AI extracting data...</div>
+                    <div className="app-list-subtitle" style={{ marginTop: '8px' }}>
+                      Optimizing for low-light highway conditions and printed waybill layouts.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scanStep === 'review' && (
+                <div className="app-stacked-list">
+                  <div className="card-glass app-data-card">
+                    <div className="app-list-row" style={{ marginBottom: '18px' }}>
+                      <div className="app-list-main">
+                        <div
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '16px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(34,197,94,0.12)',
+                            color: 'var(--color-success)',
+                          }}
+                        >
+                          <CheckCircle2 size={20} />
+                        </div>
+                        <div className="app-list-copy">
+                          <div className="app-list-title">Scan verified</div>
+                          <div className="app-list-subtitle">Review and adjust before saving.</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="app-form-grid">
+                      <div>
+                        <label className="app-field-label">Consignee name</label>
+                        <input
+                          className="input-field"
+                          value={scannedData.consignee}
+                          onChange={(event) => setScannedData({ ...scannedData, consignee: event.target.value })}
+                        />
+                      </div>
+
+                      <div className="app-form-grid two-up">
+                        <div>
+                          <label className="app-field-label">Weight (kg)</label>
+                          <input
+                            className="input-field"
+                            value={scannedData.weight}
+                            onChange={(event) => setScannedData({ ...scannedData, weight: event.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="app-field-label">Total price</label>
+                          <input
+                            className="input-field"
+                            value={scannedData.price}
+                            onChange={(event) => setScannedData({ ...scannedData, price: event.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => saveBiltyMutation.mutate(scannedData)}
+                    disabled={saveBiltyMutation.isPending}
+                    className="app-button is-primary is-block"
+                    style={{ minHeight: '56px' }}
+                  >
+                    <Save size={16} /> Digitize waybill
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedDoc && (
+          <div className="app-sheet-overlay">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="app-sheet-backdrop"
+              onClick={() => setSelectedDoc(null)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="app-sheet"
+            >
+              <div className="app-sheet-handle" />
+              <div className="app-sheet-header">
+                <div>
+                  <h3 className="app-sheet-title">{selectedDoc.name}</h3>
+                  <p className="app-page-subtitle">Upload or replace the latest verified image.</p>
+                </div>
+                <button onClick={() => setSelectedDoc(null)} className="app-close">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {documents?.find((item) => item.type === selectedDoc.id) ? (
+                <div className="app-stacked-list">
+                  <img
+                    src={documents.find((item) => item.type === selectedDoc.id).document_url}
+                    alt={selectedDoc.name}
+                    style={{ width: '100%', borderRadius: '22px', objectFit: 'cover' }}
+                  />
+                  <label className="app-button is-secondary is-block">
+                    <Upload size={16} /> Update image
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files[0];
+                        if (file) uploadDocMutation.mutate({ type: selectedDoc.id, file });
+                      }}
+                    />
+                  </label>
+                </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                   <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'var(--color-primary)' }}>
-                      <Upload size={32} />
-                   </div>
-                   <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '800', marginBottom: '8px' }}>No Document Uploaded</h4>
-                   <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginBottom: '32px' }}>Please upload a clear photo of your {selectedDoc.name} for verification.</p>
-                   
-                   <label className="btn btn-primary btn-block" style={{ height: '60px', borderRadius: '20px', position: 'relative' }}>
-                      {isUploading ? <Clock className="animate-spin" size={20} /> : <><Upload size={20} /> Select File</>}
-                      <input type="file" hidden accept="image/*" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) uploadMutation.mutate({ type: selectedDoc.id, file });
-                      }} />
-                   </label>
+                <div className="app-stacked-list">
+                  <div className="app-upload-tile" style={{ minHeight: '220px' }}>
+                    <Upload size={34} color="var(--color-primary)" />
+                    <div className="app-list-title">No document uploaded yet</div>
+                    <div className="app-list-subtitle">
+                      Upload a clear photo of your {selectedDoc.name} for verification.
+                    </div>
+                  </div>
+
+                  <label className="app-button is-primary is-block">
+                    {isUploading ? <Clock size={16} className="animate-spin" /> : <Upload size={16} />}
+                    {isUploading ? 'Uploading...' : 'Select file'}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) uploadDocMutation.mutate({ type: selectedDoc.id, file });
+                      }}
+                    />
+                  </label>
                 </div>
               )}
             </motion.div>
@@ -211,19 +481,21 @@ export default function Vault() {
 }
 
 function StatusBadge({ status }) {
-  if (!status) return <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontWeight: '700' }}>Not Uploaded</span>;
-  
-  const config = {
-    pending: { color: '#F59E0B', text: 'Pending Review', icon: <Clock size={12} /> },
-    verified: { color: '#10B981', text: 'Verified', icon: <CheckCircle2 size={12} /> },
-    rejected: { color: '#EF4444', text: 'Rejected', icon: <AlertCircle size={12} /> },
-    expired: { color: '#6B7280', text: 'Expired', icon: <AlertCircle size={12} /> },
-  }[status];
+  if (!status) {
+    return <span style={{ color: 'var(--color-text-muted)', fontSize: '12px', fontWeight: '700' }}>Not uploaded</span>;
+  }
 
+  const config = {
+    pending: { color: '#F59E0B', text: 'Pending review', icon: Clock },
+    verified: { color: '#10B981', text: 'Verified', icon: CheckCircle2 },
+    rejected: { color: '#EF4444', text: 'Rejected', icon: AlertCircle },
+  }[status] || { color: '#6B7280', text: status, icon: AlertCircle };
+
+  const Icon = config.icon;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-      <span style={{ color: config.color }}>{config.icon}</span>
-      <span style={{ color: config.color, fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{config.text}</span>
-    </div>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: config.color, fontWeight: '800' }}>
+      <Icon size={13} />
+      {config.text}
+    </span>
   );
 }

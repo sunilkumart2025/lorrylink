@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { IndianRupee, Info, CheckCircle, AlertTriangle } from 'lucide-react';
 
-export default function RateCard({ data }) {
+export default function RateCard({ data, onPrimaryAction, primaryLabel }) {
   const [expanded, setExpanded] = useState(false);
   const platformFee = data.fee_pct / 100 * data.gross_rate;
   const gst = platformFee * 0.18;
   const takeHome = data.gross_rate - platformFee - gst;
+  const isActionable = typeof onPrimaryAction === 'function';
+  const ctaLabel = primaryLabel || (isActionable ? `VIEW & BID (₹${takeHome.toLocaleString()})` : 'PREVIEW ONLY');
 
   return (
     <div className="card mb-md">
@@ -59,7 +61,15 @@ export default function RateCard({ data }) {
           </ul>
        </div>
 
-       <button className="btn btn-primary btn-block">VIEW & BID (₹{takeHome.toLocaleString()})</button>
+       <button
+         type="button"
+         onClick={onPrimaryAction}
+         disabled={!isActionable}
+         className="btn btn-primary btn-block"
+         style={{ opacity: isActionable ? 1 : 0.65, cursor: isActionable ? 'pointer' : 'default' }}
+       >
+         {ctaLabel}
+       </button>
 
     </div>
   );

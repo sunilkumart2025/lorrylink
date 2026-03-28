@@ -1,189 +1,173 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import {
-  Truck, Shield, Zap, Mic, Map, ArrowRight,
-  Globe2, BarChart3
+import { 
+  Truck, Shield, Zap, Mic, Map, ArrowRight, 
+  Globe2, BarChart3, ChevronRight, Play, Star
 } from 'lucide-react';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const isMobile = window.innerWidth < 768;
 
-  const fadeUp = {
+  const scrollToFeatures = () => {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, delayChildren: 0.2 }
+    }
+  };
+
+  const item = {
     hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0 }
+    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
   };
 
   return (
-    <div style={{ background: '#0A0A0F', minHeight: '100vh', overflowX: 'hidden' }}>
-
-      {/* BACKGROUND */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundImage: 'linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-        pointerEvents: 'none',
-        zIndex: 0
-      }} />
-
-      {/* NAVBAR */}
-      <nav style={{
-        padding: isMobile ? '16px' : '24px 5%',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <motion.div
-            whileHover={{ rotate: 10 }}
-            style={{ background: 'var(--color-primary)', padding: '8px', borderRadius: '12px' }}
-          >
-            <Truck size={22} color="#000" />
-          </motion.div>
-          <span style={{ fontWeight: '900', color: 'white' }}>LOADLINK</span>
+    <div className="landing-shell">
+      
+      {/* ── Navbar ─────────────────────────────────────────────────── */}
+      <nav className="container landing-nav">
+        <div className="brand-lockup">
+          <div className="brand-mark">
+            <Truck size={24} color="white" />
+          </div>
+          <span className="brand-wordmark">LORRYLINK<span className="brand-dot">.</span></span>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/lang')}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '12px',
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'white',
-            fontWeight: '700'
-          }}
-        >
-          Sign In
-        </motion.button>
+        <div className="hide-mobile landing-nav-links">
+          <a href="#features">Features</a>
+          <a href="#network">Network</a>
+          <a href="#partners">Partners</a>
+          <button 
+            onClick={() => navigate('/driver/lang')}
+            className="btn-premium btn-premium-primary"
+            style={{ padding: '12px 24px', fontSize: '14px' }}
+          >
+            Launch Portal
+          </button>
+        </div>
+        
+        <button className="show-mobile btn-premium btn-premium-outline" onClick={() => navigate('/driver/lang')}>
+           Login
+        </button>
       </nav>
 
-      {/* HERO */}
-      <section style={{
-        padding: isMobile ? '60px 16px' : '100px 5%',
-        textAlign: 'center'
-      }}>
-        <motion.h1
-          variants={fadeUp}
-          initial="hidden"
-          animate="show"
-          style={{
-            fontSize: isMobile ? '32px' : '64px',
-            fontWeight: '900',
-            color: 'white',
-            lineHeight: '1.2'
-          }}
-        >
-          The Future of
-          <span style={{
-            display: 'block',
-            background: 'linear-gradient(135deg,#3B82F6,#22D3EE)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Highway Logistics
-          </span>
-        </motion.h1>
+      {/* ── Hero Section ───────────────────────────────────────────── */}
+      <section className="container section-padding landing-hero">
+        <div className="landing-hero-glow" />
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={{
-            marginTop: '16px',
-            color: 'rgba(255,255,255,0.5)',
-            fontSize: isMobile ? '14px' : '18px'
-          }}
-        >
-          AI-powered matching • Voice commands • Real-time navigation
-        </motion.p>
+        <motion.div variants={container} initial="hidden" animate="show" className="hero-copy">
+          <motion.div variants={item} className="hero-pill">
+            <span>Now Live in 12+ States</span>
+            <ChevronRight size={14} color="var(--color-primary)" />
+          </motion.div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/lang')}
-          style={{
-            marginTop: '28px',
-            padding: '16px 28px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg,#3B82F6,#22D3EE)',
-            color: 'white',
-            fontWeight: '800',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginInline: 'auto'
-          }}
-        >
-          Enter Dashboard <ArrowRight size={18} />
-        </motion.button>
+          <motion.h1 variants={item} className="text-hero">
+            The Future of <br />
+            <span className="text-gradient-primary">Highway Logistics</span>
+          </motion.h1>
+
+          <motion.p variants={item} className="hero-subtitle">
+            India's first AI-driven OS for the road. Real-time matching, 
+            voice-controlled operations, and instant profitability tracking.
+          </motion.p>
+
+          <motion.div variants={item} className="hero-actions">
+            <button onClick={() => navigate('/driver/lang')} className="btn-premium btn-premium-primary">
+              Get Started for Free <ArrowRight size={20} />
+            </button>
+            <button onClick={scrollToFeatures} className="btn-premium hero-secondary-button">
+              <Play size={20} fill="white" /> Watch Demo
+            </button>
+          </motion.div>
+        </motion.div>
       </section>
 
-      {/* FEATURES */}
-      <section id="features" style={{ padding: '60px 16px' }}>
-        <h2 style={{ textAlign: 'center', color: 'white', marginBottom: '24px' }}>
-          Core Features
-        </h2>
+      {/* ── Stats & Trust ────────────────────────────────────────────── */}
+      <section className="container" id="partners" style={{ paddingBottom: '100px' }}>
+        <div className="glass-panel stats-panel">
+          <div className="stats-grid">
+            <StatItem icon={<Truck />} label="Active Lorry Network" value="85,000+" />
+            <StatItem icon={<Zap />} label="Avg. Matching Time" value="< 2 Mins" />
+            <StatItem icon={<BarChart3 />} label="Total Freight Volume" value="₹450 Cr+" />
+            <StatItem icon={<Star />} label="Monthly Active Drivers" value="120K+" />
+          </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)',
-          gap: '16px'
-        }}>
-          <FeatureCard icon={<Map />} title="Smart Matching" desc="Find nearby loads easily" />
-          <FeatureCard icon={<Mic />} title="Voice Control" desc="Hands-free experience" />
-          <FeatureCard icon={<Globe2 />} title="Multi Language" desc="Hindi, Tamil, English" />
-          <FeatureCard icon={<BarChart3 />} title="Analytics" desc="Track earnings easily" />
-          <FeatureCard icon={<Shield />} title="Secure" desc="Verified network" />
-          <FeatureCard icon={<Zap />} title="Low Data Mode" desc="Works on weak network" />
+          <div className="partner-strip">
+            <p>Trusted Powerhouse Partners</p>
+            <div className="partner-grid">
+               <BrandIcon name="TATA" />
+               <BrandIcon name="ASHOK LEYLAND" />
+               <BrandIcon name="MAHINDRA" />
+               <BrandIcon name="RELIANCE" />
+               <BrandIcon name="BLUE DART" />
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* STATS SECTION */}
-      <section style={{ padding: '60px 16px', background: 'rgba(59,130,246,0.02)', borderY: '1px solid rgba(255,255,255,0.03)' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? '32px' : '80px', maxWidth: '1000px', margin: '0 auto' }}>
-           <StatItem label="Verified Drivers" value="50,000+" />
-           <StatItem label="Total Payouts" value="₹120Cr+" />
-           <StatItem label="Route Efficiency" value="98.4%" />
+      {/* ── Features Grid ────────────────────────────────────────────── */}
+      <section className="container section-padding" id="features">
+        <div className="feature-header">
+           <h2>Radical Simplicity, <span style={{ color: 'var(--color-primary)' }}>Engineered.</span></h2>
+           <p>Solving the hardest problems for the highway ecosystem.</p>
+        </div>
+
+        <div className="grid-auto-fit">
+          <FeatureCard 
+            icon={<Zap />} 
+            title="AI Matching" 
+            desc="Predictive routes that connect empty trucks with the highest-paying loads before they hit the market." 
+          />
+          <FeatureCard 
+            icon={<Mic />} 
+            title="Voice Interface" 
+            desc="Full hands-free control designed specifically for Indian highway noise and localized accents." 
+          />
+          <FeatureCard 
+            icon={<Shield />} 
+            title="Instant Verification" 
+            desc="Blockchain-backed KYC and vehicle history to ensure 100% trust across every transaction." 
+          />
+          <FeatureCard 
+            icon={<Map />} 
+            title="Smart Navigation" 
+            desc="Live highway statuses, police checkpoint alerts, and toll optimization for maximum speed." 
+          />
+          <FeatureCard 
+            icon={<Globe2 />} 
+            title="Multilingual" 
+            desc="Support for 14 regional languages, ensuring every driver in India can operate with confidence." 
+          />
+          <FeatureCard 
+            icon={<BarChart3 />} 
+            title="Profit Analytics" 
+            desc="Deep insights into your diesel consumption, toll costs, and net profit per kilometer." 
+          />
         </div>
       </section>
 
-      <section style={{ padding: '40px 16px', textAlign: 'center', opacity: 0.5 }}>
-        <p style={{ fontSize: '11px', fontWeight: '900', letterSpacing: '2px', color: 'rgba(255,255,255,0.4)', marginBottom: '24px' }}>TRUSTED BY TOP LOGISTICS PARTNERS</p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap', filter: 'grayscale(1)' }}>
-           <span style={{ color: 'white', fontWeight: '900', fontSize: '20px' }}>TATA MOTORS</span>
-           <span style={{ color: 'white', fontWeight: '900', fontSize: '20px' }}>ASHOK LEYLAND</span>
-           <span style={{ color: 'white', fontWeight: '900', fontSize: '20px' }}>MAHINDRA LOGISTICS</span>
-           <span style={{ color: 'white', fontWeight: '900', fontSize: '20px' }}>RELIANCE</span>
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <footer className="container landing-footer">
+        <div className="landing-footer-inner">
+          <div className="brand-lockup">
+            <div style={{ background: 'var(--grad-primary)', padding: '6px', borderRadius: '10px' }}>
+              <Truck size={18} color="white" />
+            </div>
+            <span style={{ fontWeight: '900', letterSpacing: '-0.5px' }}>LORRYLINK.</span>
+          </div>
+          <p className="footer-note">
+             Empowering the backbone of Indian logistics through cutting-edge technology and radical inclusivity.
+          </p>
+          <div className="footer-copyright">
+             © 2026 LOADLINK LOGISTICS PVT LTD. ALL RIGHTS RESERVED.
+          </div>
         </div>
-      </section>
-
-      {/* FINAL CTA */}
-      <section style={{ padding: '50px 16px', textAlign: 'center' }}>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate('/driver/lang')}
-          style={{
-            padding: '18px 32px',
-            borderRadius: '18px',
-            background: 'linear-gradient(135deg,#3B82F6,#22D3EE)',
-            color: 'white',
-            fontWeight: '900'
-          }}
-        >
-          Get Started 🚚
-        </motion.button>
-      </section>
-
-      {/* FOOTER */}
-      <footer style={{ textAlign: 'center', padding: '20px', color: 'gray' }}>
-        © 2026 LOADLINK
       </footer>
-
     </div>
   );
 }
@@ -191,26 +175,31 @@ export default function Landing() {
 function FeatureCard({ icon, title, desc }) {
   return (
     <motion.div
-      whileHover={{ y: -6 }}
-      style={{
-        padding: '20px',
-        borderRadius: '16px',
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.05)'
-      }}
+      whileHover={{ y: -10, borderColor: 'rgba(59,130,246,0.3)' }}
+      className="glass-panel feature-card"
+      style={{ transition: 'var(--transition)' }}
     >
-      <div style={{ marginBottom: '10px', color: 'var(--color-primary)' }}>{icon}</div>
-      <h3 style={{ color: 'white', fontSize: '16px', fontWeight: '900' }}>{title}</h3>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>{desc}</p>
+      <div className="feature-card-icon">
+        {icon}
+      </div>
+      <h3 style={{ fontSize: '20px', fontWeight: '900', marginBottom: '12px' }}>{title}</h3>
+      <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', lineHeight: '1.6' }}>{desc}</p>
     </motion.div>
   );
 }
 
-function StatItem({ label, value }) {
+function StatItem({ icon, label, value }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: '36px', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>{value}</div>
-      <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--color-primary)', textTransform: 'uppercase', marginTop: '4px', letterSpacing: '2px' }}>{label}</div>
+    <div>
+       <div style={{ color: 'var(--color-primary)', marginBottom: '12px', opacity: 0.5 }}>{icon}</div>
+       <div style={{ fontSize: '32px', fontWeight: '950', letterSpacing: '-1px' }}>{value}</div>
+       <div style={{ fontSize: '11px', fontWeight: '900', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '2px', marginTop: '4px' }}>{label}</div>
     </div>
+  );
+}
+
+function BrandIcon({ name }) {
+  return (
+    <span style={{ fontWeight: '950', fontSize: '15px', letterSpacing: '0.16em' }}>{name}</span>
   );
 }

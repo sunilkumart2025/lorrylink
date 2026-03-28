@@ -23,7 +23,11 @@ export default function SwipeableCard({ data, onSwipeRight, onSwipeLeft }) {
       onDragEnd={handleDragEnd}
       whileTap={{ scale: 0.95 }}
     >
-      <RateCard data={data} />
+      <RateCard
+        data={data}
+        onPrimaryAction={() => onSwipeRight(data.id)}
+        primaryLabel={`SHORTLIST (₹${Math.round(data.gross_rate - (data.fee_pct / 100 * data.gross_rate) * 1.18).toLocaleString()})`}
+      />
     </motion.div>
   );
 }

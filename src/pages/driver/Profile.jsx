@@ -13,8 +13,8 @@ const KYC_STEPS = [
 ];
 
 export default function Profile() {
-  const { t } = useTranslation();
-  const { user, setUser } = useStore();
+  const { t, i18n } = useTranslation();
+  const { user, setUser, setLanguage } = useStore();
   const navigate = useNavigate();
   const [kycStep, setKycStep] = useState(0);
   const [kycStatus, setKycStatus] = useState('not_started');
@@ -105,16 +105,40 @@ export default function Profile() {
     navigate('/driver/login');
   };
 
+  const cycleLanguage = () => {
+    const langs = ['en', 'hi', 'ta'];
+    const currentIndex = langs.indexOf(i18n.language);
+    const nextLang = langs[(currentIndex + 1) % langs.length];
+    i18n.changeLanguage(nextLang);
+    setLanguage(nextLang);
+  };
+
+  if (!user || user.id === null) {
+    return (
+      <div style={{
+        minHeight: '80vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--color-text-primary)'
+      }}>
+        <div className="loader-pulse"></div>
+        <p style={{ marginTop: '16px', fontSize: '12px', fontWeight: '900', letterSpacing: '2px', opacity: 0.5 }}>LOADING IDENTITY...</p>
+      </div>
+    );
+  }
+
   const kycProgress = kycStatus === 'verified' ? 100 : kycStatus === 'pending' ? 66 : 10;
 
   return (
-    <div style={{ padding: 'var(--spacing-md)', paddingBottom: '100px' }}>
+    <div className="app-page app-page-narrow">
       <AnimatePresence mode="wait">
         {kycStep === 0 ? (
           <motion.div key="overview" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
 
             {/* Profile Hero Card */}
-            <div className="card-glass" style={{ textAlign: 'center', padding: '32px 24px', marginBottom: '20px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+            <div className="card-glass" style={{ textAlign: 'center', padding: '32px 24px', marginBottom: '20px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(34, 211, 238, 0.03) 100%)', border: '1px solid rgba(59, 130, 246, 0.16)', borderRadius: '32px' }}>
               <div style={{
                 width: '90px', height: '90px', borderRadius: '50%',
                 background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
@@ -126,13 +150,13 @@ export default function Profile() {
                   <Camera size={14} color="var(--color-primary)" />
                 </div>
               </div>
-              <h2 style={{ fontSize: '22px', fontWeight: '900', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--color-text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 {isEditing ? (
                   <input
                     type="text"
                     value={editData.name}
                     onChange={e => setEditData({ ...editData, name: e.target.value })}
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-primary)', color: 'white', fontSize: '20px', fontWeight: '900', textAlign: 'center', borderRadius: '8px', padding: '4px 12px', width: '200px' }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', fontSize: '20px', fontWeight: '900', textAlign: 'center', borderRadius: '8px', padding: '4px 12px', width: '200px' }}
                   />
                 ) : (
                   <>
@@ -151,7 +175,7 @@ export default function Profile() {
                     value={editData.phone}
                     onChange={e => setEditData({ ...editData, phone: e.target.value })}
                     placeholder="Phone number"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', borderRadius: '8px', padding: '4px 12px', width: '180px' }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', borderRadius: '8px', padding: '4px 12px', width: '180px' }}
                   />
                 ) : (
                   <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', margin: 0 }}>{user?.phone || user?.email || 'Not set'}</p>
@@ -164,7 +188,7 @@ export default function Profile() {
                   <select
                     value={editData.truck_type}
                     onChange={e => setEditData({ ...editData, truck_type: e.target.value })}
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '14px', borderRadius: '8px', padding: '10px', width: '220px', margin: '0 auto', display: 'block' }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--color-text-primary)', fontSize: '14px', borderRadius: '8px', padding: '10px', width: '220px', margin: '0 auto', display: 'block' }}
                   >
                     {['6-Wheeler', '10-Wheeler', '12-Wheeler', '14-Wheeler', '22-Wheeler'].map(t => (
                       <option key={t} value={t}>{t}</option>
@@ -206,8 +230,8 @@ export default function Profile() {
               {/* Quick Stats */}
               <div className="flex gap-md" style={{ marginTop: '24px' }}>
                 <div style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--color-primary)' }}>142</div>
-                  <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Trips</div>
+                    <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--color-primary)' }}>142</div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Trips</div>
                 </div>
                 <div style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                   <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--color-success)' }}>4.8</div>
@@ -240,12 +264,12 @@ export default function Profile() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'white', margin: 0 }}>Digital Document Vault</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--color-text-primary)', margin: 0 }}>Digital Document Vault</h3>
                   <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--color-primary)', background: 'rgba(59, 130, 246, 0.1)', padding: '4px 10px', borderRadius: '10px' }}>SECURE</span>
                 </div>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>Manage RC, Driving License & Insurance</p>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>Manage RC, Driving License & Insurance</p>
               </div>
-              <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
+              <ChevronRight size={20} color="var(--color-text-muted)" />
             </motion.div>
 
             {/* Subscription Status Card */}
@@ -255,24 +279,25 @@ export default function Profile() {
               className="card-glass"
               style={{
                 marginBottom: '16px',
-                background: user.subscription_tier === 'GOLD' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.02) 100%)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${user.subscription_tier === 'GOLD' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255,255,255,0.05)'}`,
+                background: user?.subscription_tier === 'GOLD' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.02) 100%)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${user?.subscription_tier === 'GOLD' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255,255,255,0.05)'}`,
                 cursor: 'pointer'
               }}
             >
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-md">
-                  <div style={{ background: user.subscription_tier === 'GOLD' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '12px' }}>
-                    <Crown size={20} color={user.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--color-primary)'} />
+                  <div style={{ background: user?.subscription_tier === 'GOLD' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '12px' }}>
+                    <Crown size={20} color={user?.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--color-primary)'} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: '800', fontSize: '15px', color: 'white' }}>{user.subscription_tier || 'STARTER'} PLAN</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Member since {new Date(user.created_at).getFullYear()}</div>
+                    <div style={{ fontWeight: '800', fontSize: '15px', color: 'var(--color-text-primary)' }}>{user?.subscription_tier || 'STARTER'} PLAN</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Member since {user?.created_at ? new Date(user.created_at).getFullYear() : '2024'}</div>
                   </div>
                 </div>
                 <button
+                  onClick={() => navigate('/driver/subscription')}
                   className="btn btn-ghost"
-                  style={{ fontSize: '11px', fontWeight: '900', color: user.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--color-primary)', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '10px', border: 'none' }}
+                  style={{ fontSize: '11px', fontWeight: '900', color: user?.subscription_tier === 'GOLD' ? '#F59E0B' : 'var(--color-primary)', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '10px', border: 'none' }}
                 >
                   UPGRADE
                 </button>
@@ -306,7 +331,7 @@ export default function Profile() {
               <MenuItem icon={<Truck size={18} />} title="My Vehicle" value={user?.truck_type || '22-Wheeler'} />
               <MenuItem icon={<Star size={18} />} title="My Reviews" value="4.8 ★" />
               <MenuItem icon={<Clock size={18} />} title="Load History" onClick={() => navigate('/driver/history')} />
-              <MenuItem icon={<Smartphone size={18} />} title="Language" value="English" />
+              <MenuItem icon={<Smartphone size={18} />} title="Language" value={i18n.language.toUpperCase()} onClick={cycleLanguage} />
               <MenuItem icon={<AlertCircle size={18} />} title="Support" last />
             </div>
 
@@ -323,7 +348,7 @@ export default function Profile() {
 
             {/* KYC Header */}
             <div className="flex items-center gap-md" style={{ marginBottom: '24px' }}>
-              <button onClick={() => setKycStep(kycStep > 1 ? kycStep - 1 : 0)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '40px', height: '40px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setKycStep(kycStep > 1 ? kycStep - 1 : 0)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text-primary)', width: '40px', height: '40px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ←
               </button>
               <div>
@@ -418,14 +443,22 @@ export default function Profile() {
 
 function MenuItem({ icon, title, value, last, onClick }) {
   return (
-    <div onClick={onClick} className="flex items-center justify-between" style={{ padding: '16px 20px', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}>
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between"
+      style={{
+        padding: '16px 20px',
+        borderBottom: last ? 'none' : '1px solid var(--glass-border)',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+    >
       <div className="flex items-center gap-md">
         <div style={{ color: 'var(--color-primary)', background: 'rgba(59, 130, 246, 0.1)', padding: '8px', borderRadius: '10px' }}>{icon}</div>
-        <span style={{ fontWeight: '500', fontSize: '15px' }}>{title}</span>
+        <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-text-primary)' }}>{title}</span>
       </div>
       <div className="flex items-center gap-sm">
         {value && <span style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>{value}</span>}
-        <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+        {onClick && <ChevronRight size={16} color="var(--color-text-muted)" />}
       </div>
     </div>
   );

@@ -195,18 +195,18 @@ export default function AvailableLoads() {
   ).length;
 
   return (
-    <div style={{ background: 'var(--color-bg)', minHeight: '100vh', paddingBottom: '120px' }}>
+    <div className="app-page" style={{ minHeight: '100dvh' }}>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{
-        padding: '20px 16px 0',
-        background: 'linear-gradient(180deg, rgba(10,10,15,1) 0%, transparent 100%)',
-        position: 'sticky', top: 0, zIndex: 10,
+      <div className="card-glass" style={{
+        padding: '22px 20px',
+        marginBottom: '18px',
+        position: 'sticky', top: 'var(--driver-mobile-sticky-top, 16px)', zIndex: 10,
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-          <div>
-            <h1 style={{ fontSize: '22px', fontWeight: '900', color: 'white', margin: 0 }}>{t('matches.title')}</h1>
-            <p style={{ color: 'var(--color-primary)', fontSize: '13px', margin: '4px 0 0' }}>
+        <div className="app-page-header" style={{ marginBottom: '4px' }}>
+          <div className="app-title-wrap">
+            <h1 className="app-page-title" style={{ fontSize: '2rem', margin: 0 }}>{t('matches.title')}</h1>
+            <p className="app-page-subtitle" style={{ color: 'var(--color-primary)' }}>
               {isLoading
                 ? t('post.matching')
                 : `${visible.length} ${t('matches.title').toLowerCase()} · ${homeCount} approx to ${homeCity}`}
@@ -224,19 +224,21 @@ export default function AvailableLoads() {
         </div>
 
         {/* Filter chips */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '14px', marginTop: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginTop: '12px' }}>
           {FILTERS.map(f => {
             const active  = filter === f;
             const isHome  = f === 'Home Route';
             return (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '7px 14px', borderRadius: '24px', whiteSpace: 'nowrap',
-                fontWeight: '700', fontSize: '12px', cursor: 'pointer',
-                border: active ? `1px solid ${isHome ? 'rgba(34,197,94,0.5)' : 'rgba(59,130,246,0.5)'}` : '1px solid rgba(255,255,255,0.08)',
-                background: active ? (isHome ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)') : 'rgba(255,255,255,0.04)',
-                color: active ? (isHome ? 'var(--color-success)' : 'var(--color-primary)') : 'rgba(255,255,255,0.4)',
-                display: 'flex', alignItems: 'center', gap: '5px',
-              }}>
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`app-chip${active ? ' is-active' : ''}`}
+                style={{
+                  borderColor: active && isHome ? 'rgba(34,197,94,0.28)' : undefined,
+                  background: active && isHome ? 'rgba(34,197,94,0.1)' : undefined,
+                  color: active && isHome ? 'var(--color-success)' : undefined,
+                }}
+              >
                 {isHome && <Home size={10} />}
                 {f === 'Home Route' ? t('matches.filter_home') : f}
                 {f === 'Home Route' && homeCount > 0 && (
@@ -250,7 +252,7 @@ export default function AvailableLoads() {
         </div>
       </div>
 
-      <div style={{ padding: '0 16px' }}>
+      <div>
 
         {/* Home route banner */}
         <AnimatePresence>
@@ -258,21 +260,17 @@ export default function AvailableLoads() {
             <motion.div
               initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
               onClick={() => setFilter('Home Route')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '14px 18px', borderRadius: '18px', marginBottom: '14px',
-                background: 'linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(34,211,238,0.05) 100%)',
-                border: '1px solid rgba(34,197,94,0.25)', cursor: 'pointer',
-              }}
+              className="app-banner positive"
+              style={{ marginBottom: '14px', cursor: 'pointer' }}
             >
               <div style={{ background: 'var(--color-success)', padding: '10px', borderRadius: '12px', flexShrink: 0 }}>
                 <Home size={18} color="white" />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '800', fontSize: '14px', color: 'white' }}>
+                <div style={{ fontWeight: '800', fontSize: '14px', color: 'var(--color-text-primary)' }}>
                   {homeCount} Load{homeCount > 1 ? 's' : ''} drop near {homeCity}
                 </div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                   Based on exact PostGIS map calculations
                 </div>
               </div>
@@ -292,10 +290,10 @@ export default function AvailableLoads() {
 
         {/* Error */}
         {error && (
-          <div className="card-glass" style={{ padding: '24px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <div className="card-glass app-empty-card" style={{ border: '1px solid rgba(239,68,68,0.22)' }}>
             <Package size={40} color="var(--color-error)" style={{ marginBottom: '12px' }} />
             <h3 style={{ color: 'var(--color-error)', marginBottom: '8px', fontSize: '16px' }}>Failed to fetch loads</h3>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '16px', wordBreak: 'break-all' }}>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginBottom: '16px', wordBreak: 'break-all' }}>
               {error.message}
             </p>
             <button onClick={() => refetch()} style={{
@@ -310,11 +308,10 @@ export default function AvailableLoads() {
 
         {/* Empty */}
         {!isLoading && !error && visible.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card-glass"
-            style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <Package size={48} color="rgba(255,255,255,0.1)" style={{ marginBottom: '16px' }} />
-            <h3 style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>No loads found</h3>
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '13px' }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card-glass app-empty-card">
+            <Package size={48} color="var(--color-text-muted)" style={{ marginBottom: '16px', opacity: 0.18 }} />
+            <h3 style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}>No loads found</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
               Check back — loads refresh automatically.
             </p>
           </motion.div>

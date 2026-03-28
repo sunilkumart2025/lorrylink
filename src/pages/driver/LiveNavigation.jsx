@@ -14,6 +14,8 @@ import TripStatusStepper from '../../components/trip/TripStatusStepper';
 import ProofUpload from '../../components/trip/ProofUpload';
 import '../../styles/MapTheme.css';
 import { parseWKT, calculateDistance } from '../../utils/geo';
+import AlertPortal from '../../components/trip/AlertPortal';
+import { Siren, ShieldAlert, Construction, Info } from 'lucide-react';
 
 // ── OSRM API Utilities ──────────────────────────────────────────────────────
 const fetchOSRMRoute = async (origin, destination) => {
@@ -76,6 +78,9 @@ export default function LiveNavigation() {
   const [loadingProof, setLoadingProof] = useState(booking?.loading_proof_url);
   const [isFlyway, setIsFlyway] = useState(false);
   const [deliveryProof, setDeliveryProof] = useState(booking?.delivery_proof_url);
+  const [activeAlerts, setActiveAlerts] = useState([]);
+  const [showAlertPortal, setShowAlertPortal] = useState(false);
+  const [proximityAlert, setProximityAlert] = useState(null);
 
   const watchRef = useRef(null);
   const lastSyncRef = useRef(0);
@@ -213,6 +218,25 @@ export default function LiveNavigation() {
     setStatus('arrived');
   };
 
+  // Fetch nearby alerts (Choice 5)
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      const { data } = await supabase.from('highway_alerts').select('*').gt('expires_at', new Date().toISOString());
+      if (data) setActiveAlerts(data.map(a => ({ ...a, pos: parseWKT(a.location) })));
+    };
+
+    fetchAlerts();
+    const sub = supabase.channel('road-alerts').on('postgres_changes', { event: '*', table: 'highway_alerts' }, fetchAlerts).subscribe();
+    return () => { supabase.removeChannel(sub); };
+  }, []);
+
+  // Proximity Alert Logic
+  useEffect(() => {
+    if (!livePos || activeAlerts.length === 0) return;
+    const nearby = activeAlerts.find(a => calculateDistance(livePos.lat, livePos.lng, a.pos.lat, a.pos.lng) < 2); // 2km
+    setProximityAlert(nearby || null);
+  }, [livePos, activeAlerts]);
+
   useEffect(() => {
     fetchRoute(pickup, drop);
     return () => {
@@ -241,7 +265,7 @@ export default function LiveNavigation() {
   });
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'fixed', inset: 0, zIndex: 2000, background: '#0A0A0F' }}>
+    <div style={{ height: '100dvh', width: '100dvw', position: 'fixed', inset: 0, zIndex: 2000, background: '#0A0A0F' }}>
       
       <WebpageMap 
         center={livePos ? [livePos.lat, livePos.lng] : [pickup.lat, pickup.lng]} 
@@ -279,6 +303,19 @@ export default function LiveNavigation() {
         {livePos && (
           <Marker position={[livePos.lat, livePos.lng]} icon={truckIcon} />
         )}
+
+        {/* Choice 5: Road Alerts Markers */}
+        {activeAlerts.map(alert => (
+          <Marker key={alert.id} position={[alert.pos.lat, alert.pos.lng]} icon={L.divIcon({
+            className: 'alert-marker',
+            html: `<div class="alert-blob" style="background: ${alert.type === 'accident' ? '#EF4444' : '#F59E0B'}"></div>`,
+            iconSize: [20, 20]
+          })}>
+            <Tooltip permanent direction="top" offset={[0, -10]}>
+              <div style={{ fontWeight: '900', textTransform: 'uppercase', fontSize: '10px' }}>{alert.type}</div>
+            </Tooltip>
+          </Marker>
+        ))}
       </WebpageMap>
 
       {/* ── Top Bar HUD ────────────────────────────────────────────────── */}
@@ -321,6 +358,17 @@ export default function LiveNavigation() {
 
             {/* Pillar 4.0: Modern Trip Progress Stepper */}
             <TripStatusStepper currentMilestone={currentMilestone} />
+
+            {proximityAlert && (
+              <motion.div initial={{ scale: 0.9, y: -20 }} animate={{ scale: 1, y: 0 }}
+                style={{ background: '#EF4444', padding: '12px 20px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', border: '2px solid rgba(255,255,255,0.2)' }}>
+                <Siren size={24} color="white" className="animate-pulse" />
+                <div>
+                   <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', fontWeight: '900' }}>CAUTION AHEAD</div>
+                   <div style={{ color: 'white', fontWeight: '900', textTransform: 'uppercase' }}>{proximityAlert.type} DETECTED</div>
+                </div>
+              </motion.div>
+            )}
 
             {isFlyway && (
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -477,6 +525,30 @@ export default function LiveNavigation() {
           )}
         </div>
       </div>
+
+      {/* Choice 5: Report Button Float */}
+      <motion.button 
+        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+        onClick={() => setShowAlertPortal(true)}
+        style={{
+          position: 'fixed', bottom: '160px', right: '20px', zIndex: 1002,
+          width: '56px', height: '56px', borderRadius: '50%', background: '#EF4444',
+          color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 16px rgba(239, 68, 68, 0.3)'
+        }}
+      >
+        <ShieldAlert size={28} />
+      </motion.button>
+
+      <AnimatePresence>
+        {showAlertPortal && (
+          <AlertPortal 
+            location={livePos || pickup} 
+            onClose={() => setShowAlertPortal(false)} 
+            onSuccess={() => { /* Possible specific confirmation alert */ }}
+          />
+        )}
+      </AnimatePresence>
       
       <style>{`
         .bottom-panel { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }

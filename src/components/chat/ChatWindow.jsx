@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { sendMessage } from '../../lib/db/messages';
+import { supabase } from '../../lib/supabase';
 import NegotiationOffer from './NegotiationOffer';
 
 /**
@@ -16,6 +17,7 @@ export default function ChatWindow({ shipment, user, onClose }) {
   const [inputText, setInputText] = useState('');
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [offerPrice, setOfferPrice] = useState(shipment?.price || 0);
+  const [isListening, setIsListening] = useState(false);
   
   const { messages, isLoading } = useChat(shipment?.id, user.id);
   const scrollRef = useRef(null);
@@ -78,6 +80,31 @@ export default function ChatWindow({ shipment, user, onClose }) {
     });
 
     alert("Offer accepted! This price will be used for the booking.");
+  };
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice input is not supported on this browser. Please use Chrome.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript;
+      if (transcript) {
+        setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      }
+    };
+
+    recognition.start();
   };
 
   return (
@@ -251,7 +278,22 @@ export default function ChatWindow({ shipment, user, onClose }) {
              </button>
           </div>
           
-          <button style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(255,255,255,0.05)', border: 'none', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={handleVoiceInput}
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '14px',
+              background: isListening ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.05)',
+              border: isListening ? '1px solid rgba(239,68,68,0.26)' : 'none',
+              color: isListening ? 'var(--color-error)' : 'rgba(255,255,255,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
             <Mic size={22} />
           </button>
         </div>

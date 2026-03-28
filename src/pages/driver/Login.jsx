@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Phone, User, Truck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Phone, User, Truck, ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Radio } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { useStore } from '../../store/useStore';
@@ -87,44 +87,52 @@ export default function Login() {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, var(--color-background) 0%, #111827 100%)', 
-      padding: 'var(--spacing-md)',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      {/* Brand Header */}
-      <motion.div 
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', damping: 20 }}
-        style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)' }}
-      >
-        <h1 style={{ color: 'white', fontSize: '42px', fontWeight: '900', letterSpacing: '-2px', marginBottom: '8px' }}>
-          LoadLink<span style={{ color: 'var(--color-primary)' }}>.</span>
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '16px', letterSpacing: '1px' }}>HIGHWAY PERFORMANCE OS</p>
-      </motion.div>
+    <div className="auth-shell">
+      <div className="auth-shell-inner container">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="auth-showcase"
+        >
+          <div className="auth-kicker">
+            <Sparkles size={14} />
+            Highway performance OS
+          </div>
+          <h1>
+            Driver-grade access,
+            <br />
+            <span className="text-gradient-primary">built for the road.</span>
+          </h1>
+          <p>
+            Sign in to manage bookings, monitor profitability, and stay connected to the freight network with a cleaner,
+            faster driver workflow.
+          </p>
+          <div className="showcase-grid">
+            <div className="card-glass showcase-card">
+              <ShieldCheck size={18} color="var(--color-primary)" />
+              <strong>Verified identity</strong>
+              <span>Driver and truck details stay organized in one secure onboarding flow.</span>
+            </div>
+            <div className="card-glass showcase-card">
+              <Radio size={18} color="var(--color-accent)" />
+              <strong>Live dispatch ready</strong>
+              <span>Jump from login straight into your dashboard, alerts, and active mission state.</span>
+            </div>
+          </div>
+        </motion.div>
 
-      {/* Auth Card */}
-      <motion.div 
-        layout
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        style={{ 
-          width: '100%', 
-          maxWidth: '420px', 
-          backgroundColor: 'var(--glass-bg)',
-          backdropFilter: 'blur(var(--blur))',
-          borderRadius: 'var(--border-radius)',
-          border: '1px solid var(--glass-border)',
-          padding: 'var(--spacing-xl)',
-          boxShadow: 'var(--box-shadow)'
-        }}
-      >
+        <motion.div 
+          layout
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="card-glass auth-card"
+        >
+          <div className="auth-brand">
+            <h1 style={{ color: 'var(--color-text-primary)', fontSize: '42px', fontWeight: '900', letterSpacing: '-2px', marginBottom: '8px' }}>
+              LoadLink<span style={{ color: 'var(--color-primary)' }}>.</span>
+            </h1>
+            <p>Highway Performance OS</p>
+          </div>
         {/* Messages */}
         <AnimatePresence>
           {errorMsg && (
@@ -132,16 +140,7 @@ export default function Login() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              style={{ 
-                backgroundColor: 'rgba(255, 82, 82, 0.15)', 
-                color: 'var(--color-danger)', 
-                padding: '12px', 
-                borderRadius: '12px', 
-                fontSize: '13px',
-                marginBottom: '16px',
-                border: '1px solid rgba(255, 82, 82, 0.2)',
-                textAlign: 'center'
-              }}
+              className="auth-message error"
             >
               {errorMsg}
             </motion.div>
@@ -151,56 +150,23 @@ export default function Login() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              style={{ 
-                backgroundColor: 'rgba(0, 230, 118, 0.15)', 
-                color: 'var(--color-success)', 
-                padding: '12px', 
-                borderRadius: '12px', 
-                fontSize: '13px',
-                marginBottom: '16px',
-                border: '1px solid rgba(0, 230, 118, 0.2)',
-                textAlign: 'center'
-              }}
+              className="auth-message success"
             >
               {successMsg}
             </motion.div>
           )}
         </AnimatePresence>
         {/* Tab Switcher */}
-        <div style={{ 
-          display: 'flex', 
-          backgroundColor: 'rgba(0,0,0,0.2)', 
-          borderRadius: '12px', 
-          padding: '4px', 
-          marginBottom: 'var(--spacing-xl)' 
-        }}>
+        <div className="auth-tabs">
           <button 
             onClick={() => setIsLogin(true)}
-            style={{ 
-              flex: 1, 
-              padding: '10px', 
-              border: 'none', 
-              borderRadius: '8px',
-              backgroundColor: isLogin ? 'var(--color-primary)' : 'transparent',
-              color: 'white',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease'
-            }}
+            className={`auth-tab${isLogin ? ' is-active' : ''}`}
           >
             Log In
           </button>
           <button 
             onClick={() => setIsLogin(false)}
-            style={{ 
-              flex: 1, 
-              padding: '10px', 
-              border: 'none', 
-              borderRadius: '8px',
-              backgroundColor: !isLogin ? 'var(--color-primary)' : 'transparent',
-              color: 'white',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease'
-            }}
+            className={`auth-tab${!isLogin ? ' is-active' : ''}`}
           >
             Register
           </button>
@@ -309,65 +275,31 @@ export default function Login() {
 
           <button 
             type="submit" 
-            className="btn btn-primary btn-block mt-xl" 
+            className="btn btn-primary btn-block auth-submit" 
             disabled={loading}
-            style={{ 
-              height: '52px', 
-              fontSize: '16px', 
-              borderRadius: '14px', 
-              boxShadow: '0 10px 15px -3px rgba(33, 150, 243, 0.4)' 
-            }}
           >
             {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             {!loading && <ArrowRight size={18} style={{ marginLeft: '10px' }} />}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 'var(--spacing-md)', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
+        <p className="auth-legal">
           By continuing, you agree to LoadLink Terms of Service.
         </p>
-      </motion.div>
 
-      {/* Trust Badges */}
-      <div style={{ marginTop: 'var(--spacing-xl)', display: 'flex', gap: '20px' }}>
-         <Badge icon={<CheckCircle2 size={14} />} label="ULIP Verified" />
-         <Badge icon={<CheckCircle2 size={14} />} label="ISO 27001" />
+          <div className="auth-badges">
+             <Badge icon={<CheckCircle2 size={14} />} label="ULIP Verified" />
+             <Badge icon={<CheckCircle2 size={14} />} label="ISO 27001" />
+          </div>
+        </motion.div>
       </div>
-
-      <style>{`
-        .glass-input {
-          width: 100%;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 12px;
-          padding: 12px 12px 12px 45px;
-          color: white;
-          font-size: 15px;
-          transition: all 0.3s ease;
-        }
-        .glass-input:focus {
-          background: rgba(255,255,255,0.15);
-          border-color: var(--color-primary);
-          outline: none;
-        }
-        .input-group {
-          position: relative;
-        }
-        .input-icon {
-          position: absolute;
-          left: 15px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: rgba(255,255,255,0.4);
-        }
-      `}</style>
     </div>
   );
 }
 
 function Badge({ icon, label }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold' }}>
+    <div className="trust-badge">
       {icon}
       <span>{label}</span>
     </div>
