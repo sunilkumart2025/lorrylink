@@ -22,6 +22,10 @@ export default function ChatWidget() {
     setInput('');
   };
 
+  const handleQuickPrompt = (prompt) => {
+    sendMessage(prompt);
+  };
+
   return (
     <>
       {/* Floating Toggle Button */}
@@ -119,6 +123,29 @@ export default function ChatWidget() {
                   <div style={{ padding: '12px 16px', borderRadius: msg.sender === 'user' ? '18px 18px 2px 18px' : '18px 18px 18px 2px', backgroundColor: msg.sender === 'user' ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', color: msg.sender === 'user' ? '#00241B' : 'white', fontSize: '14px', lineHeight: '1.4' }}>
                     {msg.text}
                   </div>
+                  {msg.sender === 'ai' && msg.suggestions?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                      {msg.suggestions.map((suggestion) => (
+                        <button
+                          key={`${msg.id}-${suggestion}`}
+                          type="button"
+                          onClick={() => handleQuickPrompt(suggestion)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            background: 'rgba(255,255,255,0.06)',
+                            color: 'rgba(255,255,255,0.88)',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {isTyping && (
@@ -134,7 +161,7 @@ export default function ChatWidget() {
             <form onSubmit={handleSend} style={{ padding: '20px', background: 'rgba(255,255,255,0.05)', display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                placeholder="Ask LinkAI..."
+                placeholder="Ask about loads, bookings, wallet, KYC..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 style={{
