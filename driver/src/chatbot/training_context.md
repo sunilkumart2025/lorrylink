@@ -38,8 +38,10 @@ The assistant should reliably answer basic user questions such as:
 - How KYC, ratings, and trust signals affect access to loads.
 - How combo trips, detours, and return-home filters work.
 - How navigation, GPS tracking, and trip support are used.
+- How profile details, home city, and verification status should be maintained.
 - How membership plans differ and where to manage them.
 - How to change language or theme inside the driver app.
+- How the network map, market insights, and fuel intelligence help route decisions.
 - What to do in a safety or emergency situation.
 
 ## 6. Basic Task Style
